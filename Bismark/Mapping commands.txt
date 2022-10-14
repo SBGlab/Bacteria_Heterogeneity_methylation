@@ -1,0 +1,11 @@
+Commands:
+Mapping 
+$ bismark_genome_preparation --parallel 8 <dir_fasta_ref>
+$ bismark --genome <dir_fasta_ref> --gzip -p 4 --parallel 8 -o <output folder> <file.fastq.gz>
+$ deduplicate_bismark -bam <input bam file>
+$ bismark_methylation_extractor --gzip --bedGraph --parallel 4 --output <out_dir> <bismark_dedupl.bam>
+$ bismark2report --alignment_report <input_PE_report.txt> --dedup_report <input.deduplication_report.txt> --splitting_report <input.deduplicated_splitting_report.txt> --mbias_report <input.deduplicated.M-bias.txt>
+
+Sorting and indexing
+$ samtools sort -o file_bismark_bt2.deduplicated.sorted.bam <file_bismark_bt2.deduplicated.bam>
+$ samtools index <file_bismark_bt2.deduplicated.sorted.bam>
