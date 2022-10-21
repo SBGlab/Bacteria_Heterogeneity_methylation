@@ -1,11 +1,25 @@
-Commands:
-Mapping 
+Trimgalore
+$ trim_galore -o <output directory> --paired --three_prime_clip_R2 3 --three_prime_clip_R1 3 --fastqc SRR15242564_r1.fastq.gz SRR15242564_r2.fastq.gz
 $ bismark_genome_preparation --parallel 8 <dir_fasta_ref>
-$ bismark --genome <dir_fasta_ref> --gzip -p 4 --parallel 8 -o <output folder> <file.fastq.gz>
-$ deduplicate_bismark -bam <input bam file>
-$ bismark_methylation_extractor --gzip --bedGraph --parallel 4 --output <out_dir> <bismark_dedupl.bam>
+
+Commands paired ends
+$ bismark --genome <genome path> -p 4 --parallel 6 -q --pbat -1 <file_r1.fq.gz> -2 <file_r2.fq.gz
+$ deduplicate_bismark -p --output_dir <output folder> --bam <bismark_bt2_pe.bam>
+$ samtools view -h -q 20 <file_bismark_bt2_pe.deduplicated.bam> -o <output_file_name_pe.deduplicated.filtered.bam>
+$ bismark_methylation_extractor --parallel 10 -p --no_overlap --ignore 7 --ignore_r2 7 --ignore_3prime 2 --ignore_3prime_r2 2 --bedGraph [--zero_based] --CX [--cytosine_report --genome_folder <genome path>] <file_bismark_bt2_pe.deduplicated.filtered.bam>
 $ bismark2report --alignment_report <input_PE_report.txt> --dedup_report <input.deduplication_report.txt> --splitting_report <input.deduplicated_splitting_report.txt> --mbias_report <input.deduplicated.M-bias.txt>
+
+Commands single end:
+$ bismark --genome <dir_fasta_ref> -p 4 --parallel 6 -q --pbat -o <output_folder> <filel_1.fq.gz>
+$ deduplicate_bismark -bam <file_bismark_bt2_se.bam>
+$ bismark_methylation_extractor --parallel 10 --ignore 7 --ignore_3prime 5 -o <output_directory> --bedGraph [--zero_based] [--cutoff 1] --CX [--cytosine_report --genome_folder ~/bisulfite_seq/] SRR15242564_r1_val_1_bismark_bt2.deduplicated.bam
+$ bismark2report --alignment_report <input_PE_report.txt> --dedup_report <input.deduplication_report.txt> --splitting_report <input.deduplicated_splitting_report.txt> --mbias_report <input.deduplicated.M-bias.txt>
+  
 
 Sorting and indexing
 $ samtools sort -o file_bismark_bt2.deduplicated.sorted.bam <file_bismark_bt2.deduplicated.bam>
 $ samtools index <file_bismark_bt2.deduplicated.sorted.bam>
+
+
+
+
