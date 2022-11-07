@@ -1,0 +1,11 @@
+awk 'BEGIN{OFS="\t"} {$8=$6;$9=$7; $6=$4*100/($4+$5+1);$7=$6;$6=$5;$5=$4;$4=$3;$3=$2+1;$10=$5+$6 ; print $0}' SRR15242564_val_bismark_bt2_pe.deduplicated.filtered.CX_report.txt > SRR15242564_val_bismark_bt2_pe.deduplicated.filtered.CX_report_percentaje.txt
+awk '$7 >= 25 && $7 <= 75 && $10 >= 25' SRR15242564_val_bismark_bt2_pe.deduplicated.filtered.CX_report_percentaje.txt > SRR15242564_val_bismark_bt2_pe.deduplicated.filtered.CX_report_clean.txt
+
+awk '$8~/CHG/{print}' SRR15242564_val_bismark_bt2_pe.deduplicated.filtered.CX_report_clean.txt > SRR15242564_CHG.txt
+bedtools intersect -a file1_clean.bedGraph -b file2_clean.bedGraph > file_clone_intersection.txt
+awk 'BEGIN{print "CHROMOSOME\tSTART_POSITION\tEND_POSITION\tSTRAND\tMETHYLATED\tUNMETHYLATED\tPERCENTAJE_METHYLATION\tC-CONTEXT\tTRINUCLEOTIDE_CONTEXT\tCOVERAGE"}{print $0}' SRR15242564_SRR15242565_CHG_intersection.txt > SRR15242564_SRR15242565_CHG_intersection.txt
+
+awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print $1,$2,$3,$7}' SRR15242564_SRR15242565_intersection.txt > 64_65_CHG.bedgraph
+
+
+
