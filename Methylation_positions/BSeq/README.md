@@ -7,8 +7,7 @@ Dataset form SRA [SRP329794](https://www.ncbi.nlm.nih.gov/sra?term=SRP329794), E
 - [SRR15242569](https://www.ncbi.nlm.nih.gov/sra/SRX11548398[accn]): clone 2, ABBS primers (NNNNNSuperG)
 
 Reference genome: [NC_000913.3](https://www.ncbi.nlm.nih.gov/nuccore/NC_000913.3)
-
-# Partial 5mC call from clones 1 and 2
-
-A CX_report was extracted with bismak_methylation_extractor. The selection criteria for cytosine positions was a percentaje of methylation between 25 and 75, both included, and a coverage equal or above 25 found in both sample preparations.  
+Mapping and 5mC methylation call was done with bismark utility. From the CX_report the selection criteria for cytosine positions was a percentaje of methylation between 25 and 75, both included, and a coverage equal or above 25 found in all sample preparations. The intersection analysis was performed with bedtools intersect.
 All the hits were found in a **CHG context**.
+
+
