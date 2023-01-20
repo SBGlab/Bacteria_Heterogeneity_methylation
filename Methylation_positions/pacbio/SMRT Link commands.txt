@@ -1,0 +1,29 @@
+SMRT Link Installation:
+$chmod +x smrtlink_10.2.1.143962.run 
+#permission for command, I need to be in the directory where the installer unziped files are present)
+$smrtlink_10.2.1.143962.run --rootdir smrtlink --smrttools-only
+
+Setting up the command line environment (make commands in the bin directory executable)
+$ulimit -n 8192
+$export SMRT_ROOT=/home/earmenteros/miniconda3/pkgs/smrtlink
+$export PATH=$PATH:$SMRT_ROOT/smrtcmds/bin
+
+Demultiplexing n-n indexes
+$lima --same --split-bam Ecoli_8plex_demo.barcoded.subreads.bam barcodes_8plex.fasta Ecoli_8plex_demo.barcoded.subreads.demux.bam
+
+Mapping and indexing
+$pbmm2 align <input.subreads.bam> <reference.fasta> <output.subreads.aligned.bam> --sort
+$samtools faidx <reference.fasta>
+$pbindex <aligned_subreads.bam>
+
+Methylation extraction
+$ipdSummary <aligned_subreads.bam> --reference <reference.fasta> --gff <methylations_n-n.gff> --csv <methylations_sn-n.csv> --pvalue 0.001 --numWorkers 16 --identify m4C,m6A,m5C_TET --methylFraction --useChemistry "SP3-C3"
+
+Select only those positions with methylation fraction
+$awk -F "\t|;" -v OFS="\t" 'NF==15 {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15}' methylation_n-n.gff> methylation_n-n_percentaje.gff
+
+#Excel filter IPDRatio>= 4 & fraction methylation between 25-75% in--> methylation_n-n_percentaje.gff out--> methylation_n-n_filtered.txt
+
+Final gff file --> R
+$awk -F "\t" -v OFS="\t" 'BEGIN{print "CHROMOSOME","START","END","SCORE","STRAND","TYPE","ATTRIBUTES"}{print $1,$4-1,$5,$6,$7,$3,$9";"$10";"$11";"$12";"$13";"$14";"$15";"$16";"$17}' methylation_n-n_filtered.csv.txt > methylations_0-0_out.gff
+
