@@ -1,7 +1,7 @@
 # PacBio datasets
  
  Datasets from:
- - processed gff file [MethSMRT](http://sysbio.gzzoc.com/download/Prokaryota/Ecoli.gff.tar.gz) from the raw data[SRS674093](https://www.ncbi.nlm.nih.gov/sra/?term=SRS674093)
+ - processed gff file [MethSMRT](http://sysbio.gzzoc.com/download/Prokaryota/Ecoli.gff.tar.gz) from the raw data [SRS674093](https://www.ncbi.nlm.nih.gov/sra/?term=SRS674093)
  -  PacificBiosciences / DevNet [8 plex Ecoli Multiplexed Microbial Assembly](https://github.com/PacificBiosciences/DevNet/wiki/8-plex-Ecoli-Multiplexed-Microbial-Assembly)
 
 Reference genome: [NC_000913.3](https://www.ncbi.nlm.nih.gov/nuccore/NC_000913.3)
