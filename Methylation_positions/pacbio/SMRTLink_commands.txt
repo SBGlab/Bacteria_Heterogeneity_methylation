@@ -22,7 +22,7 @@ $ipdSummary <aligned_subreads.bam> --reference <reference.fasta> --gff <methylat
 Select only those positions with methylation fraction
 $awk -F "\t|;" -v OFS="\t" 'NF==15 {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15}' methylation_n-n.gff> methylation_n-n_percentaje.gff
 
-#Excel filter IPDRatio>= 4 & fraction methylation between 25-75% in--> methylation_n-n_percentaje.gff out--> methylation_n-n_filtered.txt
+#Excel filter IPDRation>= 4 & fraction methylation between 25-75% in--> methylation_n-n_percentaje.gff out--> methylation_n-n_filtered.txt
 
 Final gff file --> R
 $awk -F "\t" -v OFS="\t" 'BEGIN{print "CHROMOSOME","START","END","SCORE","STRAND","TYPE","ATTRIBUTES"}{print $1,$4-1,$5,$6,$7,$3,$9";"$10";"$11";"$12";"$13";"$14";"$15";"$16";"$17}' methylation_n-n_filtered.csv.txt > methylations_0-0_out.gff
