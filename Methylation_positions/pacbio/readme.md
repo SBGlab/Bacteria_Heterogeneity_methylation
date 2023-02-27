@@ -1,9 +1,8 @@
 # PacBio datasets
  
  Raw dataset from:
- -  PacificBiosciences / DevNet [8 plex Ecoli Multiplexed Microbial Assembly](https://github.com/PacificBiosciences/DevNet/wiki/8-plex-Ecoli-Multiplexed-Microbial-Assembly)
+ -  PacificBiosciences / DevNet [8 plex Ecoli Multiplexed Microbial Assembly](https://github.com/PacificBiosciences/DevNet/wiki/8-plex-Ecoli-Multiplexed-Microbial-Assembly). Reference genome: [NC_000913.3](https://www.ncbi.nlm.nih.gov/nuccore/NC_000913.3)
 
-Reference genome: [NC_000913.3](https://www.ncbi.nlm.nih.gov/nuccore/NC_000913.3)
 Processed with: [SMRT Link v11.0](https://downloads.pacbcloud.com/public/software/installers/smrtlink_11.0.0.146107.zip).
 
 Processed dataset:
@@ -12,4 +11,5 @@ Processed dataset:
 # Methylation call
 
 See the commands employed at SMRTLink_commands.txt
+
 The methylation call (m6A, m5C, m4C) were filtered by IPDRatio>= 4 & fraction methylation between 25-75% to generate an out.gff
