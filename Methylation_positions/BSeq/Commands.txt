@@ -29,6 +29,16 @@ Cross with one of the files to save strand info --> R
 $bedtools intersect -a SRR15242564_CHG.txt -b CHG_methylation.txt | awk 'BEGIN{OFS="\t";print "CHROMOSOME\tSTART_POSITION\tEND_POSITION\tSTRAND\tPERCENTAJE"}{print $1,$2,$3,$4,$7}' > SRP329794_BSeq_out.gff
 
 Generate bedgraph file --> igv
-$awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print $1,$2,$3,$7}' <CHG_methylation.txt> > <output_BSeq.bedgraph>
+$ awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print "NC_000913" ,$2,$3,$7}' CHG_methylation.txt > SRP329794_BSeq.bedgraph
+$ awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print "NC_000913" ,$2,$3,$4,$7}' CHG_methylation.txt > SRP329794_BSeq.bed
+$ bedtools intersect -a SRP329794_BSeq.bed -b ../../operons.bed -wa -wb |awk '$4 == $9' > operon_overlaps_Bseq.txt
+
+Motif discovery
+$ git clone https://github.com/Wang-lab-UCSD/mEpigram
+$ awk -F '\t' 'BEGIN{OFS="\t"} $4 == "-" {print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-3,$3+3,$4,$5}' SRP329794_BSeq.bed > SRP329794_BSeq_13.3_Esch_extended7_-.bed
+$ awk -F '\t' 'BEGIN{OFS="\t"} $4 == "+" {print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-3,$3+3,$4,$5}' SRP329794_BSeq.bed > SRP329794_BSeq_13.3_Esch_extended7_+.bed
+$ python2.7 bedToFasta.py -f ../SRP329794/SRP329794_BSeq_13.3_Esch_extended7+.bed -r ../reference_genome/sequence.fasta -o ../SRP329794/motif_Bseq+.fa
+$awk  -F "\t" -v OFS="\t" '$7 >= 25 && $10 >= 25 && $4 == "-" {print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-3,$3+3,$4,$7}' SRR15242564_bismark_bt2_pe.deduplicated.filtered.CX_report_percentaje.txt > SRR15242564_BSeq_13.3_Esch_extended7_-.bed (all Cs with methylation above 25%)
+
 
 
