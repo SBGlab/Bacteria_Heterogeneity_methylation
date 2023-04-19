@@ -31,7 +31,5 @@ $bedtools intersect -a SRR15242564_CHG.txt -b CHG_methylation.txt | awk 'BEGIN{O
 Generate bedgraph file --> igv
 $ awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print "NC_000913" ,$2,$3,$7}' CHG_methylation.txt > SRP329794_BSeq.bedgraph
 $ awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print "NC_000913" ,$2,$3,$4,$7}' CHG_methylation.txt > SRP329794_BSeq.bed
-$ bedtools intersect -a SRP329794_BSeq.bed -b ../../operons.bed -wa -wb |awk '$4 == $9' > operon_overlaps_Bseq.txt
-$bedtools sort -i ../../operons.bed | awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print}'> ../../operons_sorted.bed
 
 
