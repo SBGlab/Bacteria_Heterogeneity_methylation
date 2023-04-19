@@ -1,4 +1,4 @@
-#Methylation motif extraction
+# Methylation motif extraction
 
 1. Motif identification with multiMotifMaker. 
 2. Extension of each position in the bed files up to the lenght of each of the identified motifs and extract the corresponding fasta sequence ([mEpigram](https://github.com/Wang-lab-UCSD/mEpigram) bedToFasta.py) so that the motif would fit the sequence exactly. 
