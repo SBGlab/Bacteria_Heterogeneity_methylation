@@ -25,44 +25,18 @@ $awk -F "\t|;" -v OFS="\t" 'NF==15 {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
 #Excel filter IPDRation>= 4 & fraction methylation between 25-75% in--> methylation_n-n_percentaje.gff out--> methylation_n-n_filtered.txt
 
 Final gff file --> R
-$awk -F "\t" -v OFS="\t" 'BEGIN{print "CHROMOSOME","START","END","SCORE","STRAND","TYPE","ATTRIBUTES"}{print $1,$4-1,$5,$6,$7,$3,$9";"$10";"$11";"$12";"$13";"$14";"$15";"$16";"$17}' methylation_n-n_filtered.csv.txt > methylations_0-0_out.gff
+$awk -F "\t" -v OFS="\t" 'BEGIN{print "CHROMOSOME","START","END","SCORE","STRAND","TYPE","ATTRIBUTES"}{print $1,$4-1,$5,$6,$7,$3,$9";"$10";"$11";"$12";"$13";"$14";"$15";"$16";"$17}' methylation_n-n_filtered.csv.txt > methylations_n-n_out.gff
 
 In bedgraph format for IGV visualization
-$awk -F "\t" -v OFS="\t" 'BEGIN{print "track type=bedGraph"}{print "NC_000913",$4-1,$5,$7,$14}' methylation_7-7_filtered.csv.txt > methylations_7-7.bed
-$awk -F "\t" -v OFS="\t" 'BEGIN{print "track type=bedGraph"}{print "NC_000913",$4-1,$5,$14}' methylation_7-7_filtered.csv.txt > methylations_7-7.bedgraph
-$bedtools intersect -a methylation_0-0.bed -b operons.bed -wa -wb |awk '$4 == $9' > operon_overlaps_0_0
+$awk -F "\t" -v OFS="\t" 'BEGIN{print "track type=bedGraph"}{print "NC_000913",$4-1,$5,$7,$14}' methylation_n-n_filtered.csv.txt > methylations_n-n.bed
+$awk -F "\t" -v OFS="\t" 'BEGIN{print "track type=bedGraph"}{print "NC_000913",$4-1,$5,$14}' methylation_n-n_filtered.csv.txt > methylations_n-n.bedgraph
 
-Motif extraction with multiMotifMaker
-$ git clone https://github.com/bioinfomaticsCSU/MultiMotifMaker
-$ awk -v OFS="\t" 'BEGIN {print "##gff-version 3\n##source ipdSummary v2.0\n##source-commandline /home/earmenteros/miniconda3/pkgs/smrtlink/install/smrtlink-release_11.0.0.146107/bundles/smrttools/install/smrttools-release_11.0.0.146107/private/pacbio/python3pkgs/kineticstools-py3/binwrap/../../../../../private/pacbio/python3pkgs/kineticstools-py3/bin/ipdSummary methylation_0-0_aligned.bam --reference sequence.fasta --gff methylation_0-0.gff --csv methylation_0-0.csv --pvalue 0.001 --numWorkers 16 --identify m4C,m6A,m5C_TET --methylFraction --useChemistry SP3-C3\n##sequence-region NC_000913.3 1 4641652"}
-{ print $1,$2,$3,$4,$5,$6,$7,$8,$9";"$10";"$11";"$12";"$13";"$14";"$15}' methylation_0-0_filtered.txt > methylation_0-0_header.gff (filtered positions)
-$ awk -F "\t" 'BEGIN { OFS="\t" } /^#/ {print} NR > 4 && NF>0 {print "NC_000913.3",$2,$3,$4,$5,$6,$7,$8,$9}' SRR1536433.gff > SRR1536433_13.3.gff (full positions)
-$ awk -v OFS="\t" 'BEGIN {print "##gff-version 3\n##source ipdSummary.py v2.0\n##source-commandline /public/software/smrtanalysis/current/analysis/bin/ipdSummary.py -v -W /local/chenkaining/ecoli/data/base_mod_contig_ids.txt --methylFraction --identify m6A,m4C --paramsPath /public/software/smrtanalysis/current/analysis/etc/algorithm_parameters/2014-09/kineticsTools --numWorkers 16 --summary_h5 /local/chenkaining/ecoli/data/temp_kinetics.h5 --gff /public/software/smrtanalysis/tmpdir/tmplJQbpw.gff --csv /public/software/smrtanalysis/tmpdir/tmpttyE5R.csv --reference /public/software/smrtanalysis/userdata/references/Ecoli/sequence/Ecoli.fasta /local/chenkaining/ecoli/data/aligned_reads.cmp.h5\n##sequence-region ref000001 1 4641652"}
-{ print "NC_000913.3",$2,$3,$4,$5,$6,$7,$8,$9";"$10";"$11";"$12";"$13";"$14";"$15}' SRR1536433_filtered.csv.txt > SRR1536433_header.gff
-$ java -jar ./artifacts/MultiMotifMaker.jar find --fasta reference_genome --gff methylations_0_0-gff -o motif_0_0.csv -m 1
+##operons_cds.bed and operons_TSS.bed are coming from R script from the operons.txt file
 
-with meme
-$awk -F '\t' 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-5,$3+5,$4,$5}' SRR1536433.bed >  SRR1536433_13.3_Esch_extended11.bed
-$python2.7 bedToFasta.py -f ../../pacbio/SRS674093/SRR1536433_13.3_Esch_extended11.bed -r ../reference_genome/sequence.fasta -o ../../pacbio/SRS674093/SRR1536433_motif_filtered.fa
-$awk '/^>/{print ">seq_" ++i; next}{print}' SRR1536433_motif_filtered.fa > SRR1536433_seq_filtered.fa 
-$streme --nmotifs 3 --p SRR1536433_seq_filtered.fa --oc streme_out_11
+Overlap with regulatory region and with cds
+$bedtools sort -i operons_TSS.bed | awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print}'> operons_sorted_TSS.bed
+$bedtools sort -i operons_cds.bed | awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print}'> operons_cds_sorted.bed
+$bedtools intersect -a methylations_n-n.bed -b operon_cds_sorted.bed -wb > operon_overlaps_n_n_cds.txt
+$bedtools intersect -a methylations_n-n.bed -b operon_TSS_sorted.bed -wb > operon_overlaps_n_n_promoter.txt
 
-$awk -F '\t' 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$4-5,$5+5,$7,$6}' SRR1536433.gff >  SRR1536433_13.3_Esch_extended11_full.bed
-$python2.7 bedToFasta.py -f ../../pacbio/SRS674093/SRR1536433_13.3_Esch_extended11_full.bed -r ../reference_genome/sequence.fasta -o ../../pacbio/SRS674093/SRR1536433_motif_11_full.fa
-$awk '/^>/{print ">seq_" ++i; next}{print}' SRR1536433_motif_11_full.fa > SRR1536433_seq_11_full.fa 
-$streme --nmotifs 3 --p SRR1536433_motif_11_full.fa --oc streme_out_11_full
 
-$awk -F '\t' 'BEGIN{OFS="\t"} $4 == "-" {print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-5,$3+5,$4,$5}' SRR1536433.bed >  SRR1536433_13.3_Esch_extended11_-.bed
-$python2.7 bedToFasta.py -f ../../pacbio/SRS674093/SRR1536433_13.3_Esch_extended11_-.bed -r ../reference_genome/sequence.fasta -o ../../pacbio/SRS674093/SRR1536433_motif_-_filterd11.fa
-$awk '/^>/{print ">seq_" ++i; next}{print}' SRR1536433_motif_-_filterd11.fa > SRR1536433_seq_-_filterd11.fa
-$streme --nmotifs 3 --p SRR1536433_motif_-_filterd11.fa --oc streme_out_-_11
-
-$awk -F '\t' 'BEGIN{OFS="\t"} $4 == "+" {print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-5,$3+5,$4,$5}' SRR1536433.bed >  SRR1536433_13.3_Esch_extended11_+.bed
-$python2.7 bedToFasta.py -f ../../pacbio/SRS674093/SRR1536433_13.3_Esch_extended11_+.bed -r ../reference_genome/sequence.fasta -o ../../pacbio/SRS674093/SRR1536433_motif_+_filterd11.fa
-$awk '/^>/{print ">seq_" ++i; next}{print}' SRR1536433_motif_+_filterd11.fa > SRR1536433_seq_+_filterd11.fa
-$streme --nmotifs 3 --p SRR1536433_motif_+_filterd11.fa --oc streme_out_+_11
-
-$awk -F '\t' 'BEGIN{OFS="\t"} $4 == "+" {print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-7,$3+7,$4,$5}' SRR1536433.bed >  SRR1536433_13.3_Esch_extended15_+.bed
-$python2.7 bedToFasta.py -f ../../pacbio/SRS674093/SRR1536433_13.3_Esch_extended15_+.bed -r ../reference_genome/sequence.fasta -o ../../pacbio/SRS674093/SRR1536433_motif_+_filterd15.fa
-$awk '/^>/{print ">seq_" ++i; next}{print}' SRR1536433_motif_+_filterd15.fa > SRR1536433_seq_+_filterd15.fa
-$streme --nmotifs 3 --p SRR1536433_motif_+_filterd15.fa --oc streme_out_+_15
