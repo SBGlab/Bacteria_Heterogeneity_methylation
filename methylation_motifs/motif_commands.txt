@@ -1,0 +1,104 @@
+Motif extraction with multiMotifMaker (I extracted the motifs in the full data gff)
+$ git clone https://github.com/bioinfomaticsCSU/MultiMotifMaker
+$ awk -v OFS="\t" 'BEGIN {print "##gff-version 3\n##source ipdSummary v2.0\n##source-commandline /home/earmenteros/miniconda3/pkgs/smrtlink/install/smrtlink-release_11.0.0.146107/bundles/smrttools/install/smrttools-release_11.0.0.146107/private/pacbio/python3pkgs/kineticstools-py3/binwrap/../../../../../private/pacbio/python3pkgs/kineticstools-py3/bin/ipdSummary methylation_0-0_aligned.bam --reference sequence.fasta --gff methylation_0-0.gff --csv methylation_0-0.csv --pvalue 0.001 --numWorkers 16 --identify m4C,m6A,m5C_TET --methylFraction --useChemistry SP3-C3\n##sequence-region NC_000913.3 1 4641652"}
+{ print $1,$2,$3,$4,$5,$6,$7,$8,$9";"$10";"$11";"$12";"$13";"$14";"$15}' methylation_0-0_filtered.txt > methylation_0-0_header.gff (filtered positions)
+$ awk -F "\t" 'BEGIN { OFS="\t" } /^#/ {print} NR > 4 && NF>0 {print "NC_000913.3",$2,$3,$4,$5,$6,$7,$8,$9}' SRR1536433.gff > SRR1536433_13.3.gff (full positions)
+$ java -jar ./artifacts/MultiMotifMaker.jar find --fasta reference_genome --gff methylations_0_0.gff -o motif_0_0.csv -m 1 #motif in the non filtered methylation sites
+
+with meme (deprecated)
+$awk -F '\t' 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-3,$3+15,$4,$5}' SRR1536433.bed >  SRR1536433_13.3_Esch_extended_18_filtered.bed
+$python2.7 bedToFasta.py -f ../../pacbio/SRS674093/SRR1536433_13.3_Esch_extended_18_filtered.bed -r ../reference_genome/sequence.fasta -o ../../pacbio/SRS674093/SRR1536433_motif_18_filtered.fa
+$awk '/^>/{print ">seq_" ++i; next}{print}' SRR1536433_motif_18_filtered.fa > SRR1536433_seq_18_filtered.fa
+$streme --evalue --p SRR1536433_seq_18_filtered.fa--oc streme_out_18_filtered
+
+$awk -F '\t' 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$4-3,$5+15,$7,$6}' SRR1536433.gff >  SRR1536433_13.3_Esch_extended_18_full.bed
+$python2.7 bedToFasta.py -f ../../pacbio/SRS674093/SRR1536433_13.3_Esch_extended_18_full.bed -r ../reference_genome/sequence.fasta -o ../../pacbio/SRS674093/SRR1536433_motif_18_full.fa
+$awk '/^>/{print ">seq_" ++i; next}{print}' SRR1536433_motif_18_full.fa > SRR1536433_seq_18_full.fa 
+$streme --evalue --p SRR1536433_seq_18_filtered.fa--oc streme_out_18_full
+
+with RSAT pattern matching
+#For GCACNNNNNNGTT/AACNNNNNNGTGC
+$awk -F '\t' 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$4-3,$5+11,$7,$6}' SRR1536433.gff >  SRR1536433_13.3_Esch_extended_14_full.bed
+$python2.7 bedToFasta.py -f ../../pacbio/SRS674093/SRR1536433_13.3_Esch_extended_14_full.bed -r ../reference_genome/sequence.fasta -o ../../pacbio/SRS674093/SRR1536433_motif_14_full.fa
+$awk '/^>/{print ">seq_" ++i; next}{print}' SRR1536433_motif_14_full.fa > SRR1536433_seq_14_full.fa
+#For GATC
+$awk -F '\t' 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$4-2,$5+2,$7,$6}' SRR1536433.gff >  SRR1536433_13.3_Esch_extended_4_full.bed
+$python2.7 bedToFasta.py -f ../../pacbio/SRS674093/SRR1536433_13.3_Esch_extended_4_full.bed -r ../reference_genome/sequence.fasta -o ../../pacbio/SRS674093/SRR1536433_motif_4_full.fa
+$awk '/^>/{print ">seq_" ++i; next}{print}' SRR1536433_motif_4_full.fa > SRR1536433_seq_4_full.fa
+#FOR CCWGG
+$awk -F '\t' 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$4-2,$5+3,$7,$6}' SRR1536433.gff >  SRR1536433_13.3_Esch_extended_5_full.bed
+$python2.7 bedToFasta.py -f ../../pacbio/SRS674093/SRR1536433_13.3_Esch_extended_5_full.bed -r ../reference_genome/sequence.fasta -o ../../pacbio/SRS674093/SRR1536433_motif_5_full.fa
+$awk '/^>/{print ">seq_" ++i; next}{print}' SRR1536433_motif_5_full.fa > SRR1536433_seq_5_full.fa
+
+##Filtered set
+$awk -F '\t' 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-2,$3+11,$4,$5}' SRR1536433.bed >  SRR1536433_13.3_Esch_extended_14_filtered.bed
+$python2.7 bedToFasta.py -f ../../pacbio/SRS674093/SRR1536433_13.3_Esch_extended_14_filtered.bed -r ../reference_genome/sequence.fasta -o ../../pacbio/SRS674093/SRR1536433_motif_14_filtered.fa
+$awk '/^>/{print ">seq_" ++i; next}{print}' SRR1536433_motif_14_filtered.fa > SRR1536433_seq_14_filtered.fa
+
+$awk -F '\t' 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-1,$3+3,$4,$5}' SRR1536433.bed >  SRR1536433_13.3_Esch_extended_5_filtered.bed
+$python2.7 bedToFasta.py -f ../../pacbio/SRS674093/SRR1536433_13.3_Esch_extended_5_filtered.bed -r ../reference_genome/sequence.fasta -o ../../pacbio/SRS674093/SRR1536433_motif_5_filtered.fa
+$awk '/^>/{print ">seq_" ++i; next}{print}' SRR1536433_motif_5_filtered.fa > SRR1536433_seq_5_filtered.fa
+
+$awk -F '\t' 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-1,$3+2,$4,$5}' SRR1536433.bed >  SRR1536433_13.3_Esch_extended_4_filtered.bed
+$python2.7 bedToFasta.py -f ../../pacbio/SRS674093/SRR1536433_13.3_Esch_extended_4_filtered.bed -r ../reference_genome/sequence.fasta -o ../../pacbio/SRS674093/SRR1536433_motif_4_filtered.fa
+$awk '/^>/{print ">seq_" ++i; next}{print}' SRR1536433_motif_4_filtered.fa > SRR1536433_seq_4_filtered.fa
+
+$function create_fasta_full() {
+  local file_name="$1"
+  local file_prefix="${file_name%.gff}"
+  local arg="$2"
+  if [ "$arg" = "14" ]; then
+    python2.7 /home/earmenteros/mEpigram/bedToFasta.py -f <(awk -F "\t" 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$4-3,$5+11,$7,$6}' "${file_name}") -r /home/earmenteros/reference_genome/sequence.fasta -o x && awk '/^>/{print ">seq_" ++i; next}{print}' x > "${file_prefix}_seq_14_full.fa"
+  elif [ "$arg" = "4" ]; then
+    python2.7 /home/earmenteros/mEpigram/bedToFasta.py -f <(awk -F "\t" 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$4-2,$5+2,$7,$6}' "${file_name}") -r /home/earmenteros/reference_genome/sequence.fasta -o x && awk '/^>/{print ">seq_" ++i; next}{print}' x > "${file_prefix}_seq_4_full.fa"
+  elif [ "$arg" = "5" ]; then
+    python2.7 /home/earmenteros/mEpigram/bedToFasta.py -f <(awk -F "\t" 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$4-2,$5+3,$7,$6}' "${file_name}") -r /home/earmenteros/reference_genome/sequence.fasta -o x && awk '/^>/{print ">seq_" ++i; next}{print}' x > "${file_prefix}_seq_5_full.fa"
+  elif [ "$arg" = "6" ]; then
+    python2.7 /home/earmenteros/mEpigram/bedToFasta.py -f <(awk -F "\t" 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$4-2,$5+4,$7,$6}' "${file_name}") -r /home/earmenteros/reference_genome/sequence.fasta -o x && awk '/^>/{print ">seq_" ++i; next}{print}' x > "${file_prefix}_seq_6_full.fa"
+  else
+    echo "Invalid argument. The second argument must be either 4, 5 or 14."
+    return 1
+  fi
+
+  rm x
+  echo "Fasta file created successfully as ${file_prefix}_seq_${arg}_full.fa"
+}
+
+function create_fasta_filtered() {
+  local file_name="$1"
+  local file_prefix="${file_name%.bed}"
+  local arg="$2"
+  if [ "$arg" = "14" ]; then
+    python2.7 /home/earmenteros/mEpigram/bedToFasta.py -f <(awk -F '\t' 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-2,$3+11,$4,$5}' "${file_name}") -r /home/earmenteros/reference_genome/sequence.fasta -o x && awk '/^>/{print ">seq_" ++i; next}{print}' x > "${file_prefix}_seq_14_filtered.fa"
+  elif [ "$arg" = "4" ]; then
+    python2.7 /home/earmenteros/mEpigram/bedToFasta.py -f <(awk -F '\t' 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-1,$3+2,$4,$5}' "${file_name}") -r /home/earmenteros/reference_genome/sequence.fasta -o x && awk '/^>/{print ">seq_" ++i; next}{print}' x > "${file_prefix}_seq_4_filtered.fa"
+  elif [ "$arg" = "5" ]; then
+    python2.7 /home/earmenteros/mEpigram/bedToFasta.py -f <(awk -F '\t' 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$2-1,$3+3,$4,$5}' "${file_name}") -r /home/earmenteros/reference_genome/sequence.fasta -o x && awk '/^>/{print ">seq_" ++i; next}{print}' x > "${file_prefix}_seq_5_filtered.fa"
+  elif [ "$arg" = "6" ]; then
+    python2.7 /home/earmenteros/mEpigram/bedToFasta.py -f <(awk -F "\t" 'BEGIN{OFS="\t"}{print "NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome",$4-2,$5+4,$7,$6}' "${file_name}") -r /home/earmenteros/reference_genome/sequence.fasta -o x && awk '/^>/{print ">seq_" ++i; next}{print}' x > "${file_prefix}_seq_6_filtered.fa"
+  else
+    echo "Invalid argument. The second argument must be either 4, 5, 6 or 14."
+    return 1
+  fi
+
+  rm x
+  echo "Fasta file created successfully as ${file_prefix}_seq_${arg}_filtered.fa"
+}
+
+#For BSEq:
+$awk '$7 >= 25 && $10 >= 25' SRR15242569_bismark_bt2_pe.deduplicated.filtered.CX_report_percentaje.txt > SRR15242569_full.txt
+$awk '$7 >= 25 && $10 >= 25' SRR15242568_bismark_bt2_pe.deduplicated.filtered.CX_report_percentaje.txt > SRR15242568_full.txt
+$bedtools intersect -a SRR15242569_full.txt -b SRR15242568_full.txt | awk -F "\t"  -v OFS="\t" '{print $1,$2,$3,$4,$7}' > clone_2_intersection_full.bed
+$awk '$7 >= 25 && $10 >= 25' SRR15242564_bismark_bt2_pe.deduplicated.filtered.CX_report_percentaje.txt > SRR15242564_full.txt
+$awk '$7 >= 25 && $10 >= 25' SRR15242565_bismark_bt2_pe.deduplicated.filtered.CX_report_percentaje.txt > SRR15242565_full.txt
+$bedtools intersect -a SRR15242564_full.txt -b SRR15242565_full.txt | awk -F "\t"  -v OFS="\t" '{print $1,$2,$3,$4,$7}' > clone_1_intersection_full.bed
+$bedtools intersect -a clone_1_intersection_full.bed -b clone_2_intersection_full.bed > SRP329794_BSeq_full.bed
+$awk -v OFS="\t" -F "\t" '{print "NC_000913",$2,$3,$5}' SRP329794_BSeq_full.bed > SRP329794_BSeq_full.bedgraph
+$create_fasta_filterd SRP329794_BSeq_full.bed 5
+$mv SRP329794_BSeq_full_seq_5_filtered.fa SRP329794_BSeq_seq_5_full.fa
+
+#For pacbio
+$create_fasta_full methylation_n-n.gff (4,5,6,14)
+$create_fasta_filtered methylation_n-n.bed (4,5,6,14)
+
+## files go to RSAT prokaryotes pattern matching dna-pattern 

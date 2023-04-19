@@ -12,7 +12,7 @@ x=x[,2:7]
 x[,6][x[,6] == "forward"] <- '+'
 x[,6][x[,6] == "reverse"] <- '-'
 x=as.data.frame(x)
-#add an extra column with the chromosome name to cenvert to bed format
+#add an extra column with the chromosome name to convert to bed format
 x <- data.frame(new_col = 'NC_000913', x)
 rownames(x)=NULL
 #These genes are interrumped by a mobile element-->eliminate
@@ -36,87 +36,46 @@ x=x[x[,4]!=0,]
 # 9) KEY_ID_ORG
 
 #Do two different bed files, one for regulatory regions and one for coding sequence
-# operon_TSS <- data.frame()
-# for (i in 1:nrow(x)) {
-#   strand <- x[i, 7]
-#   if (strand == "+") {
-#     new_row <- as.vector(unlist(x[i, c(1, 2, 5,3, 7)]))
-#     } 
-#   else if (strand == "-") {
-#     new_row <- as.vector(unlist(x[i, c(1, 2, 4, 6, 7), drop = FALSE]))
-#     }
-#   operon_TSS <- rbind(operon_TSS, new_row)
-#   colnames(operon_TSS)=NULL
-# }
-# operon_TSS=operon_TSS[, c(1,3,4,5,2)]
-# 
-# #Some operons have regulatory regions annotated !=0 length
-# selected_rows =as.integer(operon_TSS[,3]) - as.integer(operon_TSS[,2]) != 0
-# operon_TSS=operon_TSS[selected_rows,]
-# #mean of size of regulatory region
-# mean(as.integer(operon_TSS[,3])-as.integer(operon_TSS[,2]))
+operon_TSS <- data.frame()
+for (i in 1:nrow(x)) {
+   strand <- x[i, 7]
+   if (strand == "+") {
+     new_row <- as.vector(unlist(x[i, c(1, 2, 5,3, 7)]))
+     } 
+   else if (strand == "-") {
+     new_row <- as.vector(unlist(x[i, c(1, 2, 4, 6, 7), drop = FALSE]))
+     }
+   operon_TSS <- rbind(operon_TSS, new_row)
+   colnames(operon_TSS)=NULL
+}
+operon_TSS=operon_TSS[, c(1,3,4,5,2)]
 
-#annotate a regulatory region to the the operons that don't have any annotated 
-#selected_rows =as.integer(operon_TSS[,3]) - as.integer(operon_TSS[,2]) == 0
-#selected_df <- operon_TSS[selected_rows,]
-#selected_df[,2] <- ifelse(selected_df[,4] == "+", as.integer(selected_df[,2]) - 1000, as.integer(selected_df[,2]))
-#selected_df[,3] <- ifelse(selected_df[,4] == "-", as.integer(selected_df[,3]) + 1000, as.integer(selected_df[,3]))
-#operon_TSS[selected_rows,]=selected_df
+##Some operons have regulatory regions annotated !=0 length
+selected_rows =as.integer(operon_TSS[,3]) - as.integer(operon_TSS[,2]) != 0
+operon_TSS=operon_TSS[selected_rows,]
+#mean of size of regulatory region
+mean(as.integer(operon_TSS[,3])-as.integer(operon_TSS[,2]))
 
-# operon_cds=data.frame()
-# for (i in 1:nrow(x)) {
-#   strand <- x[i, 7]
-#   if (strand == "+") {
-#     new_row <- as.vector(unlist(x[i, c(1, 2, 3, 4, 7)]))
-#   } 
-#   else if (strand == "-") {
-#     new_row <- as.vector(unlist(x[i, c(1, 2,3,4, 7), drop = FALSE]))
-#   }
-#   operon_cds <- rbind(operon_cds, new_row)
-#   colnames(operon_cds)=NULL
-# }
-# 
-# operon_cds=operon_cds[, c(1,3,4,5,2)]
-# write.table(operon_cds,file="operon_cds.bed",col.names = FALSE,row.names = FALSE,quote = FALSE,sep="\t")
-# write.table(operon_TSS,file="operon_TSS.bed",col.names = FALSE,row.names = FALSE,quote = FALSE,sep="\t")
+operon_cds=data.frame()
+for (i in 1:nrow(x)) {
+  strand <- x[i, 7]
+  if (strand == "+") {
+    new_row <- as.vector(unlist(x[i, c(1, 2, 3, 4, 7)]))
+  }
+  else if (strand == "-") {
+     new_row <- as.vector(unlist(x[i, c(1, 2,3,4, 7), drop = FALSE]))
+  }
+  operon_cds <- rbind(operon_cds, new_row)
+  colnames(operon_cds)=NULL
+}
+operon_cds=operon_cds[, c(1,3,4,5,2)]
+write.table(operon_cds,file="operon_cds.bed",col.names = FALSE,row.names = FALSE,quote = FALSE,sep="\t")
+write.table(operon_TSS,file="operon_TSS.bed",col.names = FALSE,row.names = FALSE,quote = FALSE,sep="\t")
 
 ###bedtools intersect (server)
 
 operon_gene=read.csv("OperonSet.txt",sep="\t",comment = "#",header=FALSE)[,c(1,6)]
 txdb <- makeTxDbFromGFF("GCF_000005845.2_ASM584v2_genomic.gff")
-
-# operon_overlapping_genes=function(operon_intersection,threshold){
-#   operon=read.csv(file = operon_intersection,header = FALSE, sep = "\t")[,5]
-#   operon_meth=table(operon)[which(table(operon)>=threshold)]
-#   operon_names=names(operon_meth)
-#   genes=unlist(strsplit(operon_gene[(operon_gene[,1] %in% operon_names),2],","))
-#   txdb <- makeTxDbFromGFF("gcf_000005845.2_asm584v2_genomic.gff")
-#   converted_names=na.exclude(AnnotationDbi::select(txdb, keys=genes, keytype="TXNAME",columns="GENEID",multivals="first")[,2])
-#   write.table(converted_names,file=paste0(str_remove(str_remove(operon_intersection,"overlaps_"),".txt"),"_genelist.txt"),row.names=FALSE, col.names=FALSE, sep="",quote=FALSE)
-#   return (list(converted_names,genes))
-# }
-
-
-#genes_0_0_locus=as.vector(operon_overlapping_genes("operon_overlaps_0_0.txt",4)[[1]])
-#genes_7_7_locus=as.vector(operon_overlapping_genes("operon_overlaps_7_7.txt",4)[[1]])
-#genes_SRR1536433_locus=as.vector(operon_overlapping_genes("operon_overlaps_SRR1536433.txt",4)[[1]])
-#genes_Bseq_locus=as.vector(operon_overlapping_genes("operon_overlaps_Bseq.txt",4)[[1]])
-#genes_0_0_symbol=as.vector(operon_overlapping_genes("operon_overlaps_0_0.txt",4)[[2]])
-#genes_7_7_symbol=as.vector(operon_overlapping_genes("operon_overlaps_7_7.txt",4)[[2]])
-#genes_SRR1536433_symbol=as.vector(operon_overlapping_genes("operon_overlaps_SRR1536433.txt",4)[[2]])
-#genes_Bseq_symbol=as.vector(operon_overlapping_genes("operon_overlaps_Bseq.txt",4)[[2]])
-# 
-# promoter_SRR1536433_locus=as.vector(operon_overlapping_genes("operon_overlaps_SRR1536433_promoter.txt",1)[[1]])
-# body_SRR1536433_locus=as.vector(operon_overlapping_genes("operon_overlaps_SRR1536433_cds.txt",5)[[1]])
-# 
-# promoter_0_0_locus=as.vector(operon_overlapping_genes("operon_overlaps_0_0_promoter.txt",1)[[1]])
-# body_0_0_locus=as.vector(operon_overlapping_genes("operon_overlaps_0_0_cds.txt",5)[[1]])
-# 
-# promoter_7_7_locus=as.vector(operon_overlapping_genes("operon_overlaps_7_7_promoter.txt",2)[[1]])
-# body_7_7_locus=as.vector(operon_overlapping_genes("operon_overlaps_7_7_cds.txt",5)[[1]])
-# 
-# promoter_Bseq_locus=as.vector(operon_overlapping_genes("operon_overlaps_Bseq_promoter.txt",2)[[1]])
-# body_Bseq_locus=as.vector(operon_overlapping_genes("operon_overlaps_Bseq_cds.txt",5)[[1]])
 
 #Order of significance of operons and associated genes
 significance=function(file_cds,file_tss,threshold_cds,threshold_tss){
@@ -125,7 +84,7 @@ significance=function(file_cds,file_tss,threshold_cds,threshold_tss){
   operon_meth_cds=operon_order_cds[operon_order_cds[,2]>=threshold_cds & !operon_order_cds[,1]=="micA" & !operon_order_cds[,1]=="dnaX" & !operon_order_cds[,1]=="yneO" & !operon_order_cds[,1]=="copA",]
   operon_tss=read.csv(file = file_tss,header = FALSE, sep = "\t")[,10]
   operon_order_tss=data.frame(sort(table(operon_tss),decreasing = TRUE))
-  operon_meth_tss=operon_order_tss[operon_order_tss[,2]>=threshold_tss & !(operon_order_tss[,1]=="dnaX") & !(operon_order_tss[,1]=="micA"),]
+  operon_meth_tss=operon_order_tss[operon_order_tss[,2]>=threshold_tss & !(operon_order_tss[,1]=="dnaX") & !(operon_order_tss[,1]=="micA") & !(operon_order_tss[,1]=="proK"),]
   colnames(operon_meth_tss)=c("operon","frequency")
   colnames(operon_meth_cds)=c("operon","frequency")
   joined_df <- full_join(operon_meth_tss, operon_meth_cds, by = "operon")
@@ -149,25 +108,31 @@ significance=function(file_cds,file_tss,threshold_cds,threshold_tss){
 table_Bseq=significance(file_cds = "operon_overlaps_BSeq_cds.txt",file_tss = "operon_overlaps_BSeq_promoter.txt",threshold_cds = 4,threshold_tss = 1)
 table_0_0=significance(file_cds = "operon_overlaps_0_0_cds.txt",file_tss = "operon_overlaps_0_0_promoter.txt",threshold_cds = 4,threshold_tss = 1)
 table_7_7=significance(file_cds = "operon_overlaps_7_7_cds.txt",file_tss = "operon_overlaps_7_7_promoter.txt",threshold_cds = 4,threshold_tss = 1)
+table_6_6=significance(file_cds = "operon_overlaps_6-6_cds.txt",file_tss = "operon_overlaps_6_6_promoter.txt",threshold_cds = 4,threshold_tss = 1)
+table_4_4=significance(file_cds = "operon_overlaps_4-4_cds.txt",file_tss = "operon_overlaps_4_4_promoter.txt",threshold_cds = 4,threshold_tss = 1)
 table_SRR1536433=significance(file_cds = "operon_overlaps_SRR1536433_cds.txt",file_tss = "operon_overlaps_SRR1536433_promoter.txt",threshold_cds = 4,threshold_tss = 1)
 genes_SRR1536433_locus_all=unlist(strsplit(table_SRR1536433$`Locus tag`,", "))
 genes_0_0_locus_all= unlist(strsplit(table_0_0$`Locus tag`,", "))
+genes_6_6_locus_all= unlist(strsplit(table_6_6$`Locus tag`,", "))
 genes_Bseq_locus_all=unlist(strsplit(table_Bseq$`Locus tag`,", "))
 genes_7_7_locus_all=unlist(strsplit(table_7_7$`Locus tag`,", "))
+genes_4_4_locus_all=unlist(strsplit(table_4_4$`Locus tag`,", "))
 genes_0_0_symbol_all=unlist(strsplit(table_0_0$`Gene symbol`,","))
 genes_7_7_symbol_all=unlist(strsplit(table_7_7$`Gene symbol`,","))
+genes_4_4_symbol_all=unlist(strsplit(table_4_4$`Gene symbol`,","))
+genes_6_6_symbol_all=unlist(strsplit(table_6_6$`Gene symbol`,","))
 genes_SRR1536433_symbol_all=unlist(strsplit(table_SRR1536433$`Gene symbol`,","))
 genes_Bseq_symbol_all=unlist(strsplit(table_Bseq$`Gene symbol`,","))
 
 #Gene intersections all
 
 all_intersections <- list()
-for (i in 2:4) {
-  combos <- combn(list(genes_SRR1536433_locus_all, genes_0_0_locus_all,genes_Bseq_locus_all,genes_7_7_locus_all), i, simplify = FALSE)
+for (i in 2:6) {
+  combos <- combn(list(genes_SRR1536433_locus_all, genes_0_0_locus_all,genes_Bseq_locus_all,genes_7_7_locus_all,genes_4_4_locus_all,genes_6_6_locus_all), i, simplify = FALSE)
   for (j in combos) {
     int <- Reduce(intersect, j)
     #This is the same as doing (for i=4) intersect(unlist(combos[[1]][1]),unlist(combos[[1]][2])) only for two vectors possible
-    names_j <- names(list(genes_SRR1536433=genes_SRR1536433_locus_all, genes_0_0=genes_0_0_locus_all, genes_Bseq=genes_Bseq_locus_all, genes_7_7=genes_7_7_locus_all))[match(j, list(genes_SRR1536433=genes_SRR1536433_locus_all, genes_0_0=genes_0_0_locus_all, genes_Bseq=genes_Bseq_locus_all, genes_7_7=genes_7_7_locus_all))]
+    names_j <- names(list(genes_SRR1536433=genes_SRR1536433_locus_all, genes_0_0=genes_0_0_locus_all, genes_Bseq=genes_Bseq_locus_all, genes_7_7=genes_7_7_locus_all,genes_4_4=genes_4_4_locus_all,genes_6_6=genes_6_6_locus_all))[match(j, list(genes_SRR1536433=genes_SRR1536433_locus_all, genes_0_0=genes_0_0_locus_all, genes_Bseq=genes_Bseq_locus_all, genes_7_7=genes_7_7_locus_all,genes_4_4=genes_4_4_locus_all,genes_6_6=genes_6_6_locus_all))]
     name <- paste(names_j, collapse = " vs ")
     all_intersections[[name]] <- int
   }
@@ -176,15 +141,40 @@ for (i in 2:4) {
 all_intersections
 
 
-metabolic_genes=read.csv("conv_38DC2E424FE51674044440701.txt",sep="\t",colClasses = c("NULL","character","NULL","NULL"))
-metabolic_genes=as.vector(metabolic_genes)[[1]]
+metabolic_genes=read.csv("conv_38DC2E424FE51674044440701.txt",sep="\t",colClasses = c("character","character","NULL","NULL"))
+metabolic_genes_locus=as.vector(metabolic_genes)[[1]]
+metabolic_genes_symbol=as.vector(metabolic_genes)[[2]]
 
 
 #from the table keep only the rows that have metabolic genes 
-table_Bseq_metabolic <- table_Bseq[apply(table_Bseq, 1, function(row) any(grepl(paste(metabolic_genes_locus, collapse = "|"), row[4]))), ]
-table_0_0_metabolic <- table_0_0[apply(table_0_0, 1, function(row) any(grepl(paste(metabolic_genes_locus, collapse = "|"), row[4]))), ]
-table_7_7_metabolic <- table_7_7[apply(table_7_7, 1, function(row) any(grepl(paste(metabolic_genes_locus, collapse = "|"), row[4]))), ]
-table_SRR1536433_metabolic <- table_SRR1536433[apply(table_SRR1536433, 1, function(row) any(grepl(paste(metabolic_genes_locus, collapse = "|"), row[4]))), ]
+
+gene_list_metabolic=function(table){
+  process_locus <- function(row1) {
+    row1[4] <- paste(intersect(strsplit(row1[4], ", ")[[1]], metabolic_genes_locus), collapse = ", ")
+    return(row1)
+  }
+  process_symbol <- function(row2) {
+    row2[5] <- paste(intersect(strsplit(row2[5], ",")[[1]], metabolic_genes_symbol), collapse = ", ")
+    return(row2)
+  }
+  table_metabolic <- as.data.frame(t(apply(table, 1, process_locus)))
+  table_metabolic <- table_metabolic[table_metabolic[,4] != "",]
+  table_metabolic <- as.data.frame(t(apply(table_metabolic, 1, process_symbol)))
+  table_metabolic <- table_metabolic[table_metabolic[,5] != "",]
+  gene_names=unlist(strsplit(table_metabolic$`Locus tag`,", "))
+  write.table(gene_names,file=paste0(str_remove(deparse(substitute(table)),"table_"),"_genelist_metabolic.txt"),row.names=FALSE, col.names=FALSE, sep="",quote=FALSE)
+  return(table_metabolic)
+}
+
+
+
+table_Bseq_metabolic=gene_list_metabolic(table_Bseq)
+table_0_0_metabolic=gene_list_metabolic(table_0_0)
+table_7_7_metabolic=gene_list_metabolic(table_7_7)
+table_SRR1536433_metabolic=gene_list_metabolic(table_SRR1536433)
+table_4_4_metabolic=gene_list_metabolic(table_4_4)
+table_6_6_metabolic=gene_list_metabolic(table_6_6)
+
 
 #Fisher exact test to evaluate enrichment on metabolic genes
 fisher_test_metabolic=function(table_metabolic,table_all){
@@ -204,20 +194,25 @@ fisher_test_metabolic(table_SRR1536433_metabolic,table_SRR1536433)
 genes_SRR1536433_locus_metabolic=unlist(strsplit(table_SRR1536433_metabolic$`Locus tag`,", "))
 genes_0_0_locus_metabolic= unlist(strsplit(table_0_0_metabolic$`Locus tag`,", "))
 genes_Bseq_locus_metabolic=unlist(strsplit(table_Bseq_metabolic$`Locus tag`,", "))
+genes_4_4_locus_metabolic= unlist(strsplit(table_4_4_metabolic$`Locus tag`,", "))
 genes_7_7_locus_metabolic=unlist(strsplit(table_7_7_metabolic$`Locus tag`,", "))
+genes_6_6_locus_metabolic=unlist(strsplit(table_6_6_metabolic$`Locus tag`,", "))
 genes_0_0_symbol_metabolic=unlist(strsplit(table_0_0_metabolic$`Gene symbol`,","))
 genes_7_7_symbol_metabolic=unlist(strsplit(table_7_7_metabolic$`Gene symbol`,","))
 genes_SRR1536433_symbol_metabolic=unlist(strsplit(table_SRR1536433_metabolic$`Gene symbol`,","))
 genes_Bseq_symbol_metabolic=unlist(strsplit(table_Bseq_metabolic$`Gene symbol`,","))
+genes_4_4_symbol_metabolic=unlist(strsplit(table_4_4_metabolic$`Gene symbol`,","))
+genes_6_6_symbol_metabolic=unlist(strsplit(table_6_6_metabolic$`Gene symbol`,","))
+
 
 #Gene intersections
 
 metabolic_intersections <- list()
-for (i in 2:4) {
-  combos <- combn(list(genes_SRR1536433_locus_metabolic, genes_0_0_locus_metabolic,genes_Bseq_locus_metabolic,genes_7_7_locus_metabolic), i, simplify = FALSE)
+for (i in 2:6) {
+  combos <- combn(list(genes_SRR1536433_locus_metabolic, genes_0_0_locus_metabolic,genes_Bseq_locus_metabolic,genes_7_7_locus_metabolic,genes_4_4_locus_metabolic,genes_6_6_locus_metabolic), i, simplify = FALSE)
   for (j in combos) {
     int <- Reduce(intersect, j)
-    names_j <- names(list(genes_SRR1536433=genes_SRR1536433_locus_metabolic, genes_0_0=genes_0_0_locus_metabolic, genes_Bseq=genes_Bseq_locus_metabolic, genes_7_7=genes_7_7_locus_metabolic))[match(j, list(genes_SRR1536433=genes_SRR1536433_locus_metabolic, genes_0_0=genes_0_0_locus_metabolic, genes_Bseq=genes_Bseq_locus_metabolic, genes_7_7=genes_7_7_locus_metabolic))]
+    names_j <- names(list(genes_SRR1536433=genes_SRR1536433_locus_metabolic, genes_0_0=genes_0_0_locus_metabolic, genes_Bseq=genes_Bseq_locus_metabolic, genes_7_7=genes_7_7_locus_metabolic,genes_4_4=genes_4_4_locus_metabolic,genes_6_6=genes_6_6_locus_metabolic))[match(j, list(genes_SRR1536433=genes_SRR1536433_locus_metabolic, genes_0_0=genes_0_0_locus_metabolic, genes_Bseq=genes_Bseq_locus_metabolic, genes_7_7=genes_7_7_locus_metabolic,genes_4_4=genes_4_4_locus_metabolic,genes_6_6=genes_6_6_locus_metabolic))]
     name <- paste(names_j, collapse = " vs ")
     metabolic_intersections[[name]] <- int
   }
@@ -225,8 +220,8 @@ for (i in 2:4) {
 metabolic_intersections
 
 #Functional Analysis
-metabolic_genes_locus=na.exclude(AnnotationDbi::select(txdb, keys=metabolic_genes, keytype="TXNAME",columns="GENEID",multiVals="first")[,2])
-functional_enrichment_metabolic=function(gene_symbol,background=metabolic_genes){
+#metabolic_genes_locus=na.exclude(AnnotationDbi::select(txdb, keys=metabolic_genes, keytype="TXNAME",columns="GENEID",multiVals="first")[,2])
+functional_enrichment_metabolic=function(gene_symbol,background=metabolic_genes_symbol){
   ego <- enrichGO(as.vector(gene_symbol),keyType = "SYMBOL",OrgDb = org.EcK12.eg.db,ont = "BP",qvalueCutoff = 0.05,readable = TRUE,universe = background)
   return(ego)
 }
@@ -248,6 +243,18 @@ functional_7_7_summary=data.frame(functional_7_7_metabolic@result)
 functional_7_7_all=functional_enrichment_all_background(genes_7_7_symbol_all)
 barplot(functional_7_7_all, showCategory=10,title="functional_7_7_operon_all")
 
+functional_4_4_metabolic=functional_enrichment_metabolic(genes_4_4_symbol_metabolic)
+barplot(functional_4_4_metabolic, showCategory=30,title="functional_4_4_operon_metabolic")
+functional_4_4_summary=data.frame(functional_4_4_metabolic@result)
+functional_4_4_all=functional_enrichment_all_background(genes_4_4_symbol_all)
+barplot(functional_4_4_all, showCategory=10,title="functional_4_4_operon_all")
+
+functional_6_6_metabolic=functional_enrichment_metabolic(genes_6_6_symbol_metabolic)
+barplot(functional_6_6_metabolic, showCategory=30,title="functional_6_6_operon_metabolic")
+functional_6_6_summary=data.frame(functional_6_6_metabolic@result)
+functional_6_6_all=functional_enrichment_all_background(genes_6_6_symbol_all)
+barplot(functional_6_6_all, showCategory=10,title="functional_6_6_operon_all")
+
 functional_SRR1536433_metabolic=functional_enrichment_metabolic(genes_SRR1536433_symbol_metabolic)
 barplot(functional_SRR1536433_metabolic, showCategory=10,title="functional_SRR1536433_operon_metabolic")
 functional_SRR1536433_summary=data.frame(functional_SRR1536433_metabolic@result)
@@ -260,17 +267,21 @@ functional_Bseq_summary=data.frame(functional_Bseq_metabolic@result)
 functional_Bseq_all=functional_enrichment_all_background(genes_Bseq_symbol_all)
 barplot(functional_Bseq_all, showCategory=10,title="functional_Bseq_operon_all")
 
-KEGG_0_0 <- enrichKEGG(as.vector(genes_0_0_locus),keyType = "kegg",organism = "eco" ,qvalueCutoff = 0.05,use_internal_data = FALSE,universe = metabolic_genes_locus)
+KEGG_0_0 <- enrichKEGG(as.vector(genes_0_0_locus_all),keyType = "kegg",organism = "eco" ,qvalueCutoff = 0.05,use_internal_data = FALSE,universe = metabolic_genes_locus)
 barplot(KEGG_0_0,showCategory=10,title="KEGG 0_0 operon")
-KEGG_7_7 <- enrichKEGG(as.vector(genes_7_7_locus),keyType = "kegg",organism = "eco" ,qvalueCutoff = 0.05,use_internal_data = FALSE,universe = metabolic_genes_locus)
+KEGG_6_6 <- enrichKEGG(as.vector(genes_6_6_locus_all),keyType = "kegg",organism = "eco" ,qvalueCutoff = 0.05,use_internal_data = FALSE,universe = metabolic_genes_locus)
+barplot(KEGG_6_6,showCategory=10,title="KEGG 6_6 operon")
+KEGG_4_4 <- enrichKEGG(as.vector(genes_4_4_locus_all),keyType = "kegg",organism = "eco" ,qvalueCutoff = 0.05,use_internal_data = FALSE,universe = metabolic_genes_locus)
+barplot(KEGG_4_4,showCategory=10,title="KEGG 4_4 operon")
+KEGG_7_7 <- enrichKEGG(as.vector(genes_7_7_locus_all),keyType = "kegg",organism = "eco" ,qvalueCutoff = 0.05,use_internal_data = FALSE,universe = metabolic_genes_locus)
 barplot(KEGG_7_7,showCategory=10,title="KEGG 7_7 operon")
-KEGG_Bseq <- enrichKEGG(as.vector(genes_Bseq_locus),keyType = "kegg",organism = "eco" ,qvalueCutoff = 0.05,use_internal_data = FALSE,universe = metabolic_genes_locus)
+KEGG_Bseq <- enrichKEGG(as.vector(genes_Bseq_locus_all),keyType = "kegg",organism = "eco" ,qvalueCutoff = 0.05,use_internal_data = FALSE,universe = metabolic_genes_locus)
 barplot(KEGG_Bseq,showCategory=10,title="KEGG Bseq operon")
-KEGG_SRR1536433 <- enrichKEGG(as.vector(genes_SRR1536433_locus),keyType = "kegg",organism = "eco" ,qvalueCutoff = 0.05,use_internal_data = FALSE,universe = metabolic_genes_locus)
+KEGG_SRR1536433 <- enrichKEGG(as.vector(genes_SRR1536433_locus_all),keyType = "kegg",organism = "eco" ,qvalueCutoff = 0.05,use_internal_data = FALSE,universe = metabolic_genes_locus)
 barplot(KEGG_SRR1536433,showCategory=10,title="KEGG SRR1536433 operon")
 
 
-#Genes related with heterogenity in biomass growth and regulated by methylation
+#Genes related with heterogenity in biomass growth and regulated by methylation (missing 4 and 6 datasets)
 expressed_biomass=read.csv("expressed_biomass.txt",header = FALSE, sep = "\n")
 expressed_biomass_0_0=expressed_biomass[63:85,]
 expressed_biomass_SRR1536433=expressed_biomass[2:9,]

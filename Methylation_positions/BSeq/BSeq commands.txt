@@ -1,0 +1,37 @@
+Splitting 
+$ python separate_fastq.py <input.fastq.gz> <output.read1.fastq.gz> <output.read2.fastq.gz>
+$ fastqc <fileread1.fastq.gz> <fileread2.fastq.gz>
+
+Mapping
+$ bismark_genome_preparation --parallel 8 <dir_fasta_ref_genome>
+$ bismark <genome path> -p 4 --parallel 6 -q --pbat -o <output folder> -1 <read1.fastq.gz> -2 <read2.fastq.gz>
+$ deduplicate_bismark -p --output_dir <output folder> --bam <input bam file>
+$ samtools view -h -q 20 <input bam file > -o <output folder bam file>
+$ bismark_methylation_extractor --parallel 10 -p --no_overlap --ignore 7 --ignore_r2 7 --ignore_3prime 5 --ignore_3prime_r2 5 -o <output folder> --report --bedGraph --CX --cytosine_report --genome_folder <genome path> <input bam file>
+$ bismark2report --alignment_report <input_PE_report.txt> --dedup_report <input.deduplication_report.txt> --splitting_report <input.deduplicated_splitting_report.txt> --mbias_report <input.deduplicated.M-bias.txt>
+
+Sorting and indexing --> igv
+$ samtools sort -o <nameoutput_bismark_bt2.deduplicated.filtered.sorted.bam> <input_bismark_bt2.deduplicated.filtered.bam>
+$ samtools index <file_bismark_bt2.deduplicated.filtered.sorted.bam>
+
+Selecting positions within 25-75% of methylation and >25
+$awk 'BEGIN{OFS="\t"} {$8=$6;$9=$7; $6=$4*100/($4+$5+1);$7=$6;$6=$5;$5=$4;$4=$3;$3=$2+1;$10=$5+$6 ; print $0}' <input.CX_report.txt> > <output_val_bismark_bt2_pe.deduplicated.filtered.CX_report_percentaje.txt>
+$awk '$7 >= 25 && $7 <= 75 && $10 >= 25' <input.CX_report_percentaje.txt> > <output_val_bismark_bt2_pe.deduplicated.filtered.CX_report_clean.txt>
+
+Separate positions by C-context
+$awk '$8~/CHG/{print}' <input.CX_report_clean.txt> > <SRRfile_CHG.txt>
+
+Common positions in all the 4 runs
+$bedtools intersect -a <SRRfile1.._CHG.txt> -b <SRRfile2.._CHG.txt> > <CHG_clone_intersection.txt>
+$bedtools intersect -a <CHG_clone1_intersection> -b <CHG_clone2_intersection> > <CHG_methylation.txt>
+
+Cross with one of the files to save strand info --> R
+$bedtools intersect -a SRR15242564_CHG.txt -b CHG_methylation.txt | awk 'BEGIN{OFS="\t";print "CHROMOSOME\tSTART_POSITION\tEND_POSITION\tSTRAND\tPERCENTAJE"}{print $1,$2,$3,$4,$7}' > SRP329794_BSeq_out.gff
+
+Generate bedgraph file --> igv
+$ awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print "NC_000913" ,$2,$3,$7}' CHG_methylation.txt > SRP329794_BSeq.bedgraph
+$ awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print "NC_000913" ,$2,$3,$4,$7}' CHG_methylation.txt > SRP329794_BSeq.bed
+$ bedtools intersect -a SRP329794_BSeq.bed -b ../../operons.bed -wa -wb |awk '$4 == $9' > operon_overlaps_Bseq.txt
+$bedtools sort -i ../../operons.bed | awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print}'> ../../operons_sorted.bed
+
+
