@@ -9,34 +9,23 @@ $export SMRT_ROOT=/home/earmenteros/miniconda3/pkgs/smrtlink
 $export PATH=$PATH:$SMRT_ROOT/smrtcmds/bin
 
 Demultiplexing n-n indexes
-$lima --same --split-bam Ecoli_8plex_demo.barcoded.subreads.bam barcodes_8plex.fasta Ecoli_8plex_demo.barcoded.subreads.demux.bam
+$lima --same --split-bam <input subreads.bam> <barcodes_8plex.fasta> <output barcoded.subreads.demux.bam>
 
 Mapping and indexing
-$pbmm2 align <input.subreads.bam> <reference.fasta> <output.subreads.aligned.bam> --sort
-$samtools faidx <reference.fasta>
-$pbindex <aligned_subreads.bam>
+$pbmm2 align <input subreads.demux.bam> <reference.fasta> <output subreads_aligned.bam> --sort
+$samtools faidx <reference.fasta> ???
+$pbindex <aligned_subreads.bam> ?????
 
 Methylation extraction
-$ipdSummary <aligned_subreads.bam> --reference <reference.fasta> --gff <methylations_n-n.gff> --csv <methylations_sn-n.csv> --pvalue 0.001 --numWorkers 16 --identify m4C,m6A,m5C_TET --methylFraction --useChemistry "SP3-C3"
+$ipdSummary <input subreads_aligned.bam> --reference <reference.fasta> --gff <output gff> --pvalue 0.001 --numWorkers 16 --identify m4C,m6A,m5C_TET --methylFraction --useChemistry "SP3-C3"
 
 Select only those positions with methylation fraction
-$awk -F "\t|;" -v OFS="\t" 'NF==15 {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15}' methylation_n-n.gff> methylation_n-n_percentaje.gff
-
-#Excel filter IPDRation>= 4 & fraction methylation between 25-75% in--> methylation_n-n_percentaje.gff out--> methylation_n-n_filtered.txt
-
-Final gff file --> R
-$awk -F "\t" -v OFS="\t" 'BEGIN{print "CHROMOSOME","START","END","SCORE","STRAND","TYPE","ATTRIBUTES"}{print $1,$4-1,$5,$6,$7,$3,$9";"$10";"$11";"$12";"$13";"$14";"$15";"$16";"$17}' methylation_n-n_filtered.csv.txt > methylations_n-n_out.gff
+$awk -F "\t|;" -v OFS="\t" 'NF==15 {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15}' <input gff> > <output percentage.gff>
+Full
+$awk -F"\t" '{gsub(/^frac=/, "", $12); print $1, $4-1, $5, $7, $12}' <input percentage.gff> > <output full.bed>
+Filtered 25-75%
+$awk -F"\t" '$5 < 0.75 {print $1,$2,$3,$4,$5}' <input full.bed> > <output bed>
 
 In bedgraph format for IGV visualization
-$awk -F "\t" -v OFS="\t" 'BEGIN{print "track type=bedGraph"}{print "NC_000913",$4-1,$5,$7,$14}' methylation_n-n_filtered.csv.txt > methylations_n-n.bed
-$awk -F "\t" -v OFS="\t" 'BEGIN{print "track type=bedGraph"}{print "NC_000913",$4-1,$5,$14}' methylation_n-n_filtered.csv.txt > methylations_n-n.bedgraph
-
-##operons_cds.bed and operons_TSS.bed are coming from R script from the operons.txt file
-
-Overlap with regulatory region and with cds
-$bedtools sort -i operons_TSS.bed | awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print}'> operons_sorted_TSS.bed
-$bedtools sort -i operons_cds.bed | awk 'BEGIN{OFS="\t";print "track type=bedGraph"}{print}'> operons_cds_sorted.bed
-$bedtools intersect -a methylations_n-n.bed -b operon_cds_sorted.bed -wb > operon_overlaps_n_n_cds.txt
-$bedtools intersect -a methylations_n-n.bed -b operon_TSS_sorted.bed -wb > operon_overlaps_n_n_promoter.txt
-
-
+$awk -F "\t" -v OFS="\t" 'BEGIN{print "track type=bedGraph"}{print "NC_000913",$2,$3,$5}' <input bed> > <output bedgraph>
+$awk -F "\t" -v OFS="\t" 'BEGIN{print "track type=bedGraph"}{print "NC_000913",$2,$3,$5}' <input full.bed> > <output full.bedgraph>
