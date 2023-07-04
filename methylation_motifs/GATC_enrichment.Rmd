@@ -1,0 +1,379 @@
+---
+title: "GATC_enrichment"
+output: html_document
+date: "2023-07-03"
+---
+
+```{r setup, include=FALSE}
+library(matrixStats)
+library(seqinr)
+library(pheatmap)
+library(rtracklayer)
+library(seqinr)
+library(GenomicFeatures)
+library(dplyr)
+setwd("E:/Universidad/MBB/TFM/methylation_motifs/enrichment")
+```
+
+PART 1: COUNT OF GATC MOTIFS IN CDS AND INTERGENIC
+
+```{r}
+fastaGenome<-read.fasta("NC_000913.3.fasta",seqtype = "DNA",as.string = FALSE) #load fasta sequence from Ecoli
+FG<-getSequence(fastaGenome)[[1]] 
+head(FG)
+
+annot<-readGFF("GCF_000005845.2_ASM584v2_genomic.gff") #genome annotation GFF format
+annot=as.data.frame(annot)
+
+#select cds, separating by strand
+annot_cds_forward=annot[annot$type=="CDS"&annot$strand=="+",]%>%select(seqid, start, end)
+annot_cds_reverse=annot[annot$type=="CDS"&annot$strand=="-",]%>% select(seqid, start, end)
+
+
+#select not cds
+intergen_forward <- annot_cds_forward %>% mutate(end_int = lead(start, default = first(start- 1)),start_int = end +1 ) %>% select(seqid, start_int, end_int)%>%add_row(seqid = "NC_000913.3", start_int = 0, end_int = 189, .before = 1) %>% dplyr::slice(-n())%>%add_row(seqid = "NC_000913.3", start_int = 4641629, end_int = length(FG))
+intergen_forward=intergen_forward[-which(intergen_forward$start_int>=intergen_forward$end_int),] #eliminating regions that arise from cds that overlap
+intergen_reverse <- annot_cds_reverse %>% mutate(end_int = lead(start, default = first(start) +1),start_int = end + 1) %>% select(seqid, start_int, end_int)%>%add_row(seqid = "NC_000913.3", start_int = 0, end_int = 5682, .before = 1)%>% dplyr::slice(-n())%>%add_row(seqid = "NC_000913.3", start_int = 4641629, end_int = length(FG))
+intergen_reverse=intergen_reverse[-which(intergen_reverse$start_int>=intergen_reverse$end_int),]
+```
+
+We extract all the sequences annotated as cds or intergen sepatatedly in forward and reverse strand
+
+```{r}
+sequences_forward <- list() #we create a list with the sequences that correspond to the cds peaks
+sequencesNames_forward <- character()
+for(i in 1:dim(annot_cds_forward)[1]){
+    fromto<-(annot_cds_forward[i,2]:annot_cds_forward[i,3]) 
+    tmpSeq <- FG[fromto] #select the sequences in the genome sequence annotation
+    sequences_forward[[i]]<-as.SeqFastadna(tmpSeq)
+    sequencesNames_forward[i]<-paste("cds_",annot_cds_forward[i,2],"_",annot_cds_forward[i,3],sep="")
+}
+
+sequences_reverse <- list() #we create a list with the sequences that correspond to the cds peaks
+sequencesNames_reverse <- character()
+for(i in 1:dim(annot_cds_reverse)[1]){
+    fromto<-(annot_cds_reverse[i,2]:annot_cds_reverse[i,3]) 
+    tmpSeq <- rev(comp(FG[fromto])) #select the sequences in the genome sequence annotation
+    sequences_reverse[[i]]<-as.SeqFastadna(tmpSeq)
+    sequencesNames_reverse[i]<-paste("cds_",annot_cds_reverse[i,2],"_",annot_cds_reverse[i,3],sep="")
+}
+
+sequences_intergen_forward <- list() #we create a list with the sequences that correspond to the cds peaks
+sequencesNames_intergen_forward <- character()
+for(i in 1:dim(intergen_forward)[1]){
+    fromto<-(intergen_forward[i,2]:intergen_forward[i,3]) 
+    tmpSeq <- FG[fromto] #select the sequences in the genome sequence annotation
+    sequences_intergen_forward[[i]]<-as.SeqFastadna(tmpSeq)
+    sequencesNames_intergen_forward[i]<-paste("int_",intergen_forward[i,2],"_",intergen_forward[i,3],"+",sep="")
+}
+
+
+sequences_intergen_reverse <- list() #we create a list with the sequences that correspond to the cds peaks
+sequencesNames_intergen_reverse <- character()
+for(i in 1:dim(intergen_reverse)[1]){
+    fromto<-(intergen_reverse[i,2]:intergen_reverse[i,3]) 
+    tmpSeq <- FG[fromto] #select the sequences in the genome sequence annotation
+    sequences_intergen_reverse[[i]]<-as.SeqFastadna(tmpSeq)
+    sequencesNames_intergen_reverse[i]<-paste("int_",intergen_reverse[i,2],"_",intergen_reverse[i,3],"-",sep="")
+}
+```
+
+
+```{r count 4mers in each type of data cds/ intergen}
+kmer<-4
+#forward cds
+kmers_cds_forward<-matrix(0,nrow=length(sequences_forward),ncol=4^kmer) #we will have as rows the number of peaks in our positive set (424) and as columns all the possible 4mers done with 4 nucleotides combinations (1024), the matrix will be filled counting how many of each 5mer is present in each peak and in the forward and reverse strad
+for(i in 1:length(sequences_forward)){
+  kmers_cds_forward[i,]<-as.numeric(seqinr::count(sequences_forward[[i]],wordsize = kmer)) #vector of 1024 5mer count
+}
+colnames(kmers_cds_forward)<-names(seqinr::count(sequences_forward[[i]],wordsize = kmer)) #assign the colnames as the 5mers
+rownames(kmers_cds_forward)<-sequencesNames_forward
+
+
+#reverse cds
+kmers_cds_reverse<-matrix(0,nrow=length(sequences_reverse),ncol=4^kmer) #we will have as rows the number of peaks in our positive set (424) and as columns all the possible 4mers done with 4 nucleotides combinations (1024), the matrix will be filled counting how many of each 5mer is present in each peak and in the reverse and reverse strad
+for(i in 1:length(sequences_reverse)){
+  kmers_cds_reverse[i,]<-as.numeric(seqinr::count(sequences_reverse[[i]],wordsize = kmer)) #vector of 1024 5mer count
+}
+colnames(kmers_cds_reverse)<-names(seqinr::count(sequences_reverse[[i]],wordsize = kmer)) #assign the colnames as the 5mers
+rownames(kmers_cds_reverse)<-sequencesNames_reverse
+
+kmers_cds=rbind(kmers_cds_forward,kmers_cds_reverse)
+
+
+#intergen forward
+kmers_intergen_forward<-matrix(0,nrow=length(sequences_intergen_forward),ncol=4^kmer) #we will have as rows the number of peaks in our positive set (424) and as columns all the possible 4mers done with 4 nucleotides combinations (1024), the matrix will be filled counting how many of each 5mer is present in each peak and in the forward and reverse strad
+for(i in 1:length(sequences_intergen_forward)){
+  kmers_intergen_forward[i,]<-as.numeric(seqinr::count(sequences_intergen_forward[[i]],wordsize = kmer)) #vector of 1024 5mer count
+}
+colnames(kmers_intergen_forward)<-names(seqinr::count(sequences_intergen_forward[[i]],wordsize = kmer)) #assign the colnames as the 5mers
+rownames(kmers_intergen_forward)<-sequencesNames_intergen_forward
+
+
+#Intergen reverse
+kmers_intergen_reverse<-matrix(0,nrow=length(sequences_intergen_reverse),ncol=4^kmer)
+for(i in 1:length(sequences_intergen_reverse)){
+  kmers_intergen_reverse[i,]<-as.numeric(seqinr::count(rev(comp(sequences_intergen_reverse[[i]])),wordsize = kmer)) #vector of 1024 5mer count
+}
+colnames(kmers_intergen_reverse)<-names(seqinr::count(sequences_intergen_reverse[[i]],wordsize = kmer)) #assign the colnames as the 5mers
+rownames(kmers_intergen_reverse)<-sequencesNames_intergen_reverse
+
+kmers_intergen=rbind(kmers_intergen_forward,kmers_intergen_reverse)
+```
+
+
+
+```{r Count kmers of all the genome}
+kmers_genome_forward<-t(as.matrix(as.numeric(seqinr::count(FG, wordsize = kmer))))
+kmers_genome_reverse<-t(as.matrix(as.numeric(seqinr::count(rev(comp(FG)),wordsize = kmer))))
+
+colnames(kmers_genome_forward)<-names(seqinr::count(FG,wordsize = kmer))
+rownames(kmers_genome_forward)<-"genome_forward"
+
+colnames(kmers_genome_reverse)<-names(seqinr::count(rev(comp(FG)),wordsize = kmer)) 
+rownames(kmers_genome_reverse)<-"genome_reverse"
+
+kmers_genome=rbind(kmers_genome_forward,kmers_genome_reverse)
+```
+
+
+```{r}
+# kmers_intergen_forward_scaled <- kmers_intergen_forward / sapply(sequences_intergen_forward, length)
+# kmers_intergen_reverse_scaled <- kmers_intergen_reverse / sapply(sequences_intergen_reverse, length)
+
+```
+
+
+```{r total GATC}
+
+annot_cds_forward$length=annot_cds_forward$end-annot_cds_forward$start
+annot_cds_reverse$length=annot_cds_reverse$end-annot_cds_reverse$start
+dimensions_coding=sum(annot_cds_forward$length)+sum(annot_cds_reverse$length)
+dimension_intergenic=2*4641629-dimensions_coding
+percentage_dimensions_intergenic=dimension_intergenic*100/(2*4641629)
+
+percentage_intergenic=colSums(kmers_intergen)["gatc"]*100/(colSums(kmers_intergen)["gatc"]+colSums(kmers_cds)["gatc"])
+percentage_cds=colSums(kmers_cds)["gatc"]*100/(colSums(kmers_intergen)["gatc"]+colSums(kmers_cds)["gatc"])
+library(plotrix)
+labels_GATC=c("Intergenic GATC","CDS GATC")
+pie3D(c(percentage_intergenic,percentage_cds),labels=NULL,labelcex=0.9,explode=0.05, theta=0.7,radius =1.6, start=1.5,main = "GATC distribution", col=c("green","red"),border=c("#66a61e"))
+#the 53% of GATC motifs are in intergenic areas however this represent a bigger area 57% proportion of the genome
+pie3D.labels(8.3,radius=c(4),height=0.4,theta=pi/10,labels_GATC[1],labelcex=1.2,labelrad=c(0.7))
+pie3D.labels(7.3,radius=c(2),height=0.1,theta=pi/6,labels_GATC[2],labelcex=1.1,labelrad=c(1.3))
+pie3D.labels(4,radius=c(2),height=0.2,theta=pi/100,"53%",labelcol=par("fg"),labelcex=1.2,labelrad=c(0.3))
+pie3D.labels(2,radius=c(-5),height=0.1,theta=pi/10,"47%",labelcol=par("fg"),labelcex=1.1,labelrad=c(0.3))
+
+
+binom.test(53,100,p=0.57) #GATC is evenly distributed
+
+```
+
+```{r}
+#Bseq2=read.delim("clone_2_intersection_filtered.bed",header=FALSE,stringsAsFactors = FALSE)
+#Bseq1=read.delim("clone_1_intersection_filtered.bed",header=FALSE,stringsAsFactors = FALSE)
+peaks_0_0=read.delim("methylation_0-0.bed",header=FALSE,stringsAsFactors = FALSE)
+peaks_4_4=read.delim("methylation_4-4.bed",header=FALSE,stringsAsFactors = FALSE)
+peaks_6_6=read.delim("methylation_6-6.bed",header=FALSE,stringsAsFactors = FALSE)
+peaks_7_7=read.delim("methylation_7-7.bed",header=FALSE,stringsAsFactors = FALSE)
+peaks_SRR1536433=read.delim("SRR1536433.bed",header=FALSE,stringsAsFactors = FALSE)
+
+
+methylated_region=function(P){
+    for (i in 1:nrow(P)) {
+    if (P[i, 4] == "+") {
+      within_intervals <- any(P[i, 3] >= annot_cds_forward$start & P[i, 3] <= annot_cds_forward$end)
+    } else {
+      within_intervals <- any(P[i, 3] >= annot_cds_reverse$start & P[i, 3] <= annot_cds_reverse$end)
+    }
+    
+    if (within_intervals) {
+      P$region[i] <- "cds"
+    } else {
+      P$region[i] <- "intergenic"
+    }
+  }
+  return(table(P$region))
+}
+
+#results_Bseq1=methylated_region(Bseq1)
+#results_Bseq2=methylated_region(Bseq2)
+results_0_0=methylated_region(peaks_0_0)
+results_4_4=methylated_region(peaks_4_4)
+results_6_6=methylated_region(peaks_6_6)
+results_7_7=methylated_region(peaks_7_7)
+results_SRR1536433=methylated_region(peaks_SRR1536433)
+
+#t_test_Bseq1<-binom.test(results_Bseq1["intergenic"],sum(results_Bseq1),p=0.53) 
+#t_test_Bseq2<-binom.test(results_Bseq2["intergenic"],sum(results_Bseq2),p=0.53) 
+test_0_0<-binom.test(results_0_0["intergenic"],sum(results_0_0),p=0.53) 
+test_4_4<-binom.test(results_4_4["intergenic"],sum(results_4_4),p=0.53) 
+test_6_6<-binom.test(results_6_6["intergenic"],sum(results_6_6),p=0.53) 
+test_7_7<-binom.test(results_7_7["intergenic"],sum(results_7_7),p=0.53) 
+test_SRR1536433<-binom.test(results_SRR1536433["intergenic"],sum(results_SRR1536433),p=0.53)
+
+```
+
+```{r percentaje of GATC motifs methylated found over total in the genome}
+full_0_0=dim(read.delim("methylation_0-0_full.bedgraph",header=FALSE,stringsAsFactors = FALSE))[1]-1
+full_4_4=dim(read.delim("methylation_4-4_full.bedgraph",header=FALSE,stringsAsFactors = FALSE))[1]-1
+full_6_6=dim(read.delim("methylation_6-6_full.bedgraph",header=FALSE,stringsAsFactors = FALSE))[1]-1
+full_7_7=dim(read.delim("methylation_7-7_full.bedgraph",header=FALSE,stringsAsFactors = FALSE))[1]-1
+full_SRR1536433=dim(read.delim("SRR1536433_full.bedgraph",header=FALSE,stringsAsFactors = FALSE))[1]-1
+
+load("methylation_motifs_workspace.RData")
+total_gatc_genome=colSums(kmers_genome)["gatc"]
+motifs_found=function(full,results){
+  raw=((full*(results[[1]][1,1]/100)*(results[[1]][6,1]/100))/total_gatc_genome)*100
+  correction=raw*results[[1]][7,1]
+  return(correction)
+}
+t(data.frame(motifs_found(full_0_0,results_0_0),motifs_found(full_4_4,results_4_4),motifs_found(full_6_6,results_6_6),motifs_found(full_7_7,results_7_7),motifs_found(full_SRR1536433,results_SRR1536433)))
+
+```
+PART 2: RANDOM SAMPLING AT CDS
+
+```{r Load of genome sequence and annotation}
+fastaGenome<-read.fasta("NC_000913.3.fasta",seqtype = "DNA",as.string = FALSE) #load fasta sequence from Ecoli
+FG<-getSequence(fastaGenome)[[1]] 
+head(FG)
+
+annot<-readGFF("GCF_000005845.2_ASM584v2_genomic.gff") #genome annotation GFF format
+annot=as.data.frame(annot)
+
+#select cds, separating by strand
+annot_cds_forward=annot[annot$type=="CDS"&annot$strand=="+",]%>%select(seqid, start, end)
+annot_cds_reverse=annot[annot$type=="CDS"&annot$strand=="-",]%>% select(seqid, start, end)
+```
+
+We take randomly pieces of 100 nt at each cds 
+```{r prepare the cds set}
+sequences_forward <- list() #we create a list with sequences picked randomly from that correspond to the cds peaks
+sequencesNames_forward <- character() 
+win<-50 #we take 50 nt upstream and downstream a random cds position for each cds
+positions=which(annot_cds_forward$end+win-annot_cds_forward$start-win>=100)
+for(i in 1:length(positions)){
+    random_mid<-sample((annot_cds_forward[positions[i],2]+win):(annot_cds_forward[positions[i],3]-win),1)
+    fromto<-(random_mid - win):(random_mid + win-1) 
+    tmpSeq <- FG[fromto] #select the sequences in the genome sequence annotation
+    sequences_forward[[i]]<-as.SeqFastadna(tmpSeq)
+    sequencesNames_forward[i]<-paste("cds_",annot_cds_forward$start[positions[i]],"_",annot_cds_forward$end[positions[i]],"_100nt_frw",sep="") #name each sequence with the positions of start and end of each cds, the lenght of the sequenca and the strandedness
+  }
+
+
+sequences_reverse <- list()
+sequencesNames_reverse <- character() 
+positions=which(annot_cds_reverse$end+50-annot_cds_reverse$start-50>=100)
+for(i in 1:length(positions)){
+    random_mid<-sample((annot_cds_reverse[positions[i],2]+50):(annot_cds_reverse[positions[i],3]-50),1)
+    fromto<-(random_mid - win):(random_mid + win-1) 
+    tmpSeq <- rev(comp(FG[fromto])) #reverse complementary sequence
+    sequences_reverse[[i]]<-as.SeqFastadna(tmpSeq)
+    sequencesNames_reverse[i]<-paste("cds_",annot_cds_reverse$start[positions[i]],"_",annot_cds_reverse$end[positions[i]],"_100nt_rev",sep="")
+  }
+
+
+#for a "background" random genome dataset, we random-sample the genome
+grange<-c(50,4641600) #in the range of positions from the genome we take 5000 positions (this range so that the coordinates when summing/substracting don't go beyond limits)
+sequencesBack_forward <- list()
+sequencesBack_namesforward <- character() 
+for(i in 1:2500){
+  random_mid<-sample(grange[1]:grange[2],1)
+  fromto<-(random_mid - win):(random_mid + win-1) #we center the area of 100 nt in this point
+  tmpSeq <- FG[fromto] #select the sequences in the genome sequence annotation for forward only is okay, afterwards the reverse will be taken into account when counting the kmers
+  sequencesBack_forward[[i]]<-as.SeqFastadna(tmpSeq)
+  sequencesBack_namesforward[i]<-paste("back_",fromto[1],"_",fromto[length(fromto)],"_100nt_forw",sep="")
+}
+
+sequencesBack_reverse <- list()
+sequencesBack_namesreverse <- character() 
+for(i in 1:2500){
+  random_mid<-sample(grange[1]:grange[2],1)
+  fromto<-(random_mid - win):(random_mid + win-1) #we center the area of 100 nt in this point
+  tmpSeq <- rev(comp(FG[fromto])) #select the sequences in the genome sequence annotation for forward only is okay, afterwards the reverse will be taken into account when counting the kmers
+  sequencesBack_reverse[[i]]<-as.SeqFastadna(tmpSeq)
+  sequencesBack_namesreverse[i]<-paste("back_",fromto[1],"_",fromto[length(fromto)],"_100nt_rev",sep="")
+}
+
+```
+
+```{r count kmer cds}
+kmer<-4 #GATC
+counts_forward<-matrix(0,nrow=length(sequences_forward),ncol=4^kmer) #we will have as rows the number of peaks in our cds set (2060) and as columns all the possible 4mers done with 4 nucleotides combinations (256), the matrix will be filled counting how many of each 4mer is present in each cds in the forward strand
+for(i in 1:length(sequences_forward)){
+  counts_forward[i,]<-as.numeric(seqinr::count(sequences_forward[[i]],wordsize = kmer))
+}
+colnames(counts_forward)<-names(seqinr::count(sequences_forward[[i]],wordsize = kmer)) #assign the colnames as the 4mers
+rownames(counts_forward)<-sequencesNames_forward
+
+
+#same process for the reverse set
+counts_reverse<-matrix(0,nrow=length(sequences_reverse),ncol=4^kmer) #2170 reverse sequences/rows
+for(i in 1:length(sequences_reverse)){
+  counts_reverse[i,]<-as.numeric(seqinr::count(sequences_reverse[[i]],wordsize = kmer))
+} #already the reverse sequence had been annotated for sequences_reverse
+colnames(counts_reverse)<-names(seqinr::count(sequences_reverse[[i]],wordsize = kmer))
+rownames(counts_reverse)<-sequencesNames_reverse
+counts=rbind(counts_forward,counts_reverse)
+
+allmers<-names(seqinr::count(sequences_forward[[length(sequences_forward)]],wordsize = kmer)) #save all the 4mers in a variable
+```
+
+
+```{r count kmer in background}
+counts_Back_forward<-matrix(0,nrow=length(sequencesBack_forward),ncol=4^kmer)
+for(i in 1:length(sequencesBack_forward)){
+  counts_Back_forward[i,]<-as.numeric(seqinr::count(sequencesBack_forward[[i]],wordsize = kmer)) #count forward
+}
+colnames(counts_Back_forward)<-names(seqinr::count(sequencesBack_forward[[i]],wordsize = kmer)) #assign the colnames as the 4mers
+rownames(counts_Back_forward)<-sequencesBack_namesforward
+
+
+counts_Back_reverse<-matrix(0,nrow=length(sequencesBack_reverse),ncol=4^kmer)
+for(i in 1:length(sequencesBack_reverse)){
+  counts_Back_reverse[i,]<-as.numeric(seqinr::count(sequencesBack_reverse[[i]],wordsize = kmer)) #count reverse
+}
+colnames(counts_Back_reverse)<-names(seqinr::count(sequencesBack_reverse[[i]],wordsize = kmer)) #assign the colnames as the 4mers
+rownames(counts_Back_reverse)<-sequencesBack_namesreverse
+
+counts_Back=rbind(counts_Back_forward,counts_Back_reverse)
+
+```
+
+
+
+```{r normalization}
+#we obtain the  percentage that each 4mers represents in each of the sequences in the way that the sum of all of them per row is 1
+counts_norm <- diag(1/rowSums(counts)) %*% counts 
+rownames(counts_norm)=rownames(counts)
+ss <- sample(1:nrow(counts_Back),nrow(counts)) #take form the background as many as in the cds set
+counts_Back_norm <- diag(1/rowSums(counts_Back[ss,])) %*% counts_Back[ss,] #composition in percentage of each nucleotide per sequence
+```
+
+```{r do the log ratio between the ocurrences}
+backg <- colSums(counts_Back_norm) #sum all the counts of each tetramer in the bckg
+backg <- backg/sum(backg) #renormalize, it contains the mean % of each 4mer in each bckg sequence of 100nt
+
+CM<-colMeans(counts_norm) #mean of percentaje of each kmer in the cds set
+
+llrmeans<-log2((CM)/(backg))  #each kmer that tells how much it diverges is the cds sequences with respect to the background (if positive, it is positively enriched, if negative it is negatively enriched)
+names(llrmeans)<-colnames(counts)
+par(mfrow=c(1,2))
+col_vector <- ifelse(names(sort(llrmeans)) == "gatc", "red", "black")
+cex_vector=ifelse(names(sort(llrmeans)) == "gatc", 1.5,0.6 )
+pch_vector=ifelse(names(sort(llrmeans)) == "gatc", 19,1 )
+plot(sort(llrmeans),col=col_vector,pch=pch_vector,cex=cex_vector,ylab="log2 times enriched in cds",xlab="4-mer index",main="4-mers + / - enriched in cds vs backgroud") #each index corresponds to one kmer. values below 0 mean that in the background are more enrichend which means in cds are underrepresented
+threshold=llrmeans["gatc"]
+2^0.04068877 #almost insignificant enrichment
+allmers[which(llrmeans >= threshold  )] #these are the most enriched 4mers
+x<-counts_norm[,which(llrmeans >= threshold )] #all rows with the kmers above the threshold
+x[x>0]<-1 #binarize the matrix. Those kmers on cds that have a percentage (at least one ocurrence) on one kmer transform them to 1
+par(mar=c(3,5,1,3),mfrow=c(1,1))
+dim(counts_norm)
+barplot(sort(colSums(x)),horiz = TRUE,las=2,cex.names =0.5,xlim=c(0,3000)) #now we can see the frequency of cds containing each of the kmers (once or more). The most significant is appearing in more than half of the cds 2600/4200
+colSums(x)["gatc"]
+```
+
+
+
+
+
