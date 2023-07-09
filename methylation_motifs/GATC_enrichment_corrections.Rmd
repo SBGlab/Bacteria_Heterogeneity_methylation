@@ -22,6 +22,7 @@ fastaGenome<-read.fasta("NC_000913.3.fasta",seqtype = "DNA",as.string = FALSE) #
 FG<-getSequence(fastaGenome)[[1]] 
 annot<-readGFF("GCF_000005845.2_ASM584v2_genomic.gff") #genome annotation GFF format
 annot=as.data.frame(annot)
+table(annot$type)
 
 #select coding positions
 annot_cds=annot[annot$type=="CDS",]%>%select(seqid, start, end,type,locus_tag)
@@ -64,9 +65,10 @@ for(i in 1:dim(intergenic)[1]){
 ```{r count 4mers in each type of data cds/ intergenic}
 kmer<-4
 #forward cds
-kmers_cds<-matrix(0,nrow=length(sequences_coding),ncol=4^kmer) #we will have as rows the number of peaks in our positive set (424) and as columns all the possible 4mers done with 4 nucleotides combinations (1024), the matrix will be filled counting how many of each 5mer is present in each peak and in the forward and reverse strad
+kmers_cds<-matrix(0,nrow=length(sequences_coding),ncol=4^kmer) #we will have as rows the number of coding sequences and as columns all the possible 4mers done with 4 nucleotides combinations (256), the matrix will be filled counting how many of each 4mer is present in each peak and in the forward and reverse strad
 for(i in 1:length(sequences_coding)){
   kmers_cds[i,]<-as.numeric(seqinr::count(sequences_coding[[i]],wordsize = kmer)) #vector of 1024 4mer count
+  kmers_cds[i,]=kmers_cds[i,]+as.numeric(seqinr::count(rev(comp(sequences_coding[[i]])),wordsize = kmer))
 }
 colnames(kmers_cds)<-names(seqinr::count(sequences_coding[[i]],wordsize = kmer)) #assign the colnames as the 5mers
 rownames(kmers_cds)<-sequencesNames
@@ -74,24 +76,100 @@ rownames(kmers_cds)<-sequencesNames
 
 
 #intergenic
-kmers_intergenic<-matrix(0,nrow=length(sequences_intergenic),ncol=4^kmer) #we will have as rows the number of peaks in our positive set (424) and as columns all the possible 4mers done with 4 nucleotides combinations (1024), the matrix will be filled counting how many of each 5mer is present in each peak and in the forward and reverse strad
+kmers_intergenic<-matrix(0,nrow=length(sequences_intergenic),ncol=4^kmer)
 for(i in 1:length(sequences_intergenic)){
   kmers_intergenic[i,]<-as.numeric(seqinr::count(sequences_intergenic[[i]],wordsize = kmer)) #vector of 1024 5mer count
+  kmers_intergenic[i,]=kmers_intergenic[i,]+as.numeric(seqinr::count(rev(comp(sequences_intergenic[[i]])),wordsize = kmer))
 }
 colnames(kmers_intergenic)<-names(seqinr::count(sequences_intergenic[[i]],wordsize = kmer)) #assign the colnames as the 5mers
 rownames(kmers_intergenic)<-sequencesNames_intergenic
 
 #genome 4mers
-kmers_genome<-t(as.matrix(as.numeric(seqinr::count(FG, wordsize = kmer))))
+kmers_genome<-matrix(0,nrow=1,ncol=4^kmer)
+kmers_genome[1,]<-as.numeric(seqinr::count(FG, wordsize = kmer))
+kmers_genome[1,]=kmers_genome[1,]+(as.numeric(seqinr::count(rev(comp(FG)),wordsize = kmer)))
 colnames(kmers_genome)<-names(seqinr::count(FG,wordsize = kmer))
 rownames(kmers_genome)<-"genome"
+
+```
+
+```{r expected number of a given 4mer all genome}
+#count nucleotides in whole genome forward and reverse
+nucleotide_amount=matrix(0,nrow=1,ncol=4)
+nucleotide_amount[1,]=as.numeric(seqinr::count(FG,wordsize = 1))
+nucleotide_amount[1,]=nucleotide_amount[1,]+as.numeric(seqinr::count(rev(comp(FG)),wordsize = 1))
+colnames(nucleotide_amount)<-names(seqinr::count(FG,wordsize = 1))
+genome_lenght=4641629
+nucleotide_frequency=nucleotide_amount/(2*genome_lenght)
+expected_GATC=nucleotide_frequency[3]*nucleotide_frequency[1]*nucleotide_frequency[4]*nucleotide_frequency[2]*2*genome_lenght
+
+log2(colSums(kmers_genome)["gatc"]/expected_GATC) #GATC motifs are slightly more frequent in the genome of Ecoli than expected in a random sequence of nucleotides
+
+#expectation vs reality of other 4mers with the same structure
+library(gtools)
+library(ggplot2)
+nucleotides <- c("a", "c", "g", "t")
+# Generate all permutations of the nucleotides
+permutations <- permutations(n = 4, r = 4, v = nucleotides, repeats.allowed = FALSE)
+actg_4mers <- apply(permutations, 1, paste, collapse = "")
+matching_values <- kmers_genome[, colnames(kmers_genome) %in% actg_4mers]
+print(matching_values/(expected_GATC)) #enrichment of 4mers
+
+llrmeans<-log2(matching_values/expected_GATC)  #each kmer that tells how much it diverges
+
+df <- data.frame(Category = names(sort(llrmeans)), Value = sort(llrmeans))
+col_vector <- ifelse(names(sort(llrmeans)) == "gatc", "red", "black")
+plot_genome <- ggplot(df, aes(x = Category, y = Value)) +
+  geom_bar(stat = "identity", fill = col_vector) +
+  labs(title = "Enrichment of 4mers in the genome", x = "4mers with ATGC structure", y = "log2 ratio")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+print(plot_genome)
+```
+```{r expected number of a given 4mer cds}
+
+expected_GATC_cds=expected_GATC/genome_lenght*dimensions_coding
+
+log2(colSums(kmers_cds)["gatc"]/expected_GATC_cds) #GATC motifs are slightly more frequent in the genome of Ecoli than expected in a random sequence of nucleotides
+
+
+matching_values_cds <- colSums(kmers_cds[, colnames(kmers_cds) %in% actg_4mers])
+print(matching_values_cds/(expected_GATC)) #enrichment of 4mers
+
+llrmeans_cds<-log2(matching_values_cds/expected_GATC_cds)  #each kmer that tells how much it diverges is the cds 
+
+df <- data.frame(Category = names(sort(llrmeans_cds)), Value = sort(llrmeans_cds))
+col_vector <- ifelse(names(sort(llrmeans_cds)) == "gatc", "red", "black")
+plot_cds <- ggplot(df, aes(x = Category, y = Value)) +
+  geom_bar(stat = "identity", fill = col_vector) +
+  labs(title = "Enrichment of 4mers in CDS", x = "4mers with ATGC structure", y = "log2 ratio")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+print(plot_cds)
+```
+```{r expected number of a given 4mer intergenic}
+expected_GATC_int=expected_GATC/genome_lenght*dimensions_intergenic
+log2(colSums(kmers_intergenic)["gatc"]/expected_GATC) #GATC motifs are slightly more frequent in the genome of Ecoli than expected in a random sequence of nucleotides
+
+matching_values_int <- colSums(kmers_intergenic[, colnames(kmers_intergenic) %in% actg_4mers])
+print(matching_values_int/(expected_GATC_int)) #enrichment of 4mers
+
+llrmeans_int<-log2(matching_values_int/expected_GATC_int)  #each kmer that tells how much it diverges is the int 
+
+df <- data.frame(Category = names(sort(llrmeans_int)), Value = sort(llrmeans_int))
+col_vector <- ifelse(names(sort(llrmeans_int)) == "gatc", "red", "black")
+plot_intergenic <- ggplot(df, aes(x = Category, y = Value)) +
+  geom_bar(stat = "identity", fill = col_vector) +
+  labs(title = "Enrichment of 4mers in intergenic", x = "4mers with ATGC structure", y = "log2 ratio")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+print(plot_intergenic)
 ```
 
 
 ```{r total GATC}
 annot_cds$length=annot_cds$end-annot_cds$start
 dimensions_coding=sum(annot_cds$length)
-genome_lenght=4641629
 percentage_coding=dimensions_coding*100/genome_lenght
 
 intergenic$length=intergenic$end_int-intergenic$start_int
@@ -157,8 +235,18 @@ binom.test(as.integer(percentage_GATC_intergenic),100,p=percentage_intergenic/10
 
 log2((percentage_GATC_intergenic/percentage_intergenic)/(percentage_GATC_cds/percentage_coding))
 #There is almost 2fold enrichment of GATC sites in CDS.
+binom.test(as.integer(percentage_GATC_cds),100,p=percentage_coding/100) #GATC is evenly distributed
+
+
+
 ```
 
+```{r Analysis for CATG}
+percentage_CTAG_intergenic=colSums(kmers_intergenic)["ctag"]*100/(colSums(kmers_genome)["ctag"])
+percentage_CTAG_cds=colSums(kmers_cds)["ctag"]*100/(colSums(kmers_genome)["ctag"])
+log2((percentage_CTAG_intergenic/percentage_intergenic)/(percentage_CTAG_cds/percentage_coding))
+
+```
 
 
 ```{r}
@@ -168,14 +256,25 @@ peaks_6_6=read.delim("methylation_6-6.bed",header=FALSE,stringsAsFactors = FALSE
 peaks_7_7=read.delim("methylation_7-7.bed",header=FALSE,stringsAsFactors = FALSE)
 peaks_SRR1536433=read.delim("SRR1536433.bed",header=FALSE,stringsAsFactors = FALSE)
 
-#classify each position on either cds or non-cds
-methylated_region=function(P){
+#classify each position on either cds intergenic or non-cds
+methylated_region <- function(P) {
   for (i in 1:nrow(P)) {
-    P$Category <- ifelse(any(P[i, 4] >= annot_cds$start & P[i, 4] <=
-                                     annot_cds$end), "CDS", "non-cds")
+    within_intervals <- any(P[i, 3] >= annot_cds$start & P[i, 3] <= annot_cds$end)
+    
+    if (!within_intervals) {
+      if (any(P[i, 3] >= intergenic$start_int & P[i, 3] <= intergenic$end_int)) {
+        P$region[i] <- "intergenic"
+      } else {
+        P$region[i] <- "non-cds"
+      }
+    } else {
+      P$region[i] <- "cds"
+    }
   }
-  return(table(P$Category))
+  
+  return(table(P$region))
 }
+
 
 
 results_0_0=methylated_region(peaks_0_0)
@@ -184,9 +283,103 @@ results_6_6=methylated_region(peaks_6_6)
 results_7_7=methylated_region(peaks_7_7)
 results_SRR1536433=methylated_region(peaks_SRR1536433)  #in all datasets the peaks seem to be in CDS, it is weird I don't know if I formulated correctly
 
+binom.test(results_0_0["intergenic"],sum(results_0_0),p=0.073) 
+binom.test(results_4_4["intergenic"],sum(results_4_4),p=0.073) 
+binom.test(results_6_6["intergenic"],sum(results_6_6),p=0.073) 
+binom.test(results_7_7["intergenic"],sum(results_7_7),p=0.073) 
+binom.test(results_SRR1536433["intergenic"],sum(results_SRR1536433),p=0.073)
 
+binom.test(results_0_0["cds"],sum(results_0_0),p=0.9231)
+binom.test(results_4_4["cds"],sum(results_4_4),p=0.9231) 
+binom.test(results_6_6["cds"],sum(results_6_6),p=0.9231) 
+binom.test(results_7_7["cds"],sum(results_7_7),p=0.9231) 
+binom.test(results_SRR1536433["cds"],sum(results_SRR1536433),p=0.9231)
+
+#they follow the same distribution that it is in the genome
 
 
 radcoord=2*pi*peaks_0_0$V2/4641629
 lm(peaks_0_0$V5~cos(radcoord)+sin(radcoord)) #I don't know how to interpret this results
 ```
+PART 3: CDS structures
+```{r}
+kmer_cds_norm <- diag(1/rowSums(kmers_cds)) %*% kmers_cds  #we obtain the  percentage that each 4mers represents in each of the sequences in the way that the sum of all of them per row is 1
+rownames(kmer_cds_norm)=rownames(kmers_cds)
+gatc_kmer_cds=kmer_cds_norm[,"gatc"]
+gatc_kmer_cds_nocero=gatc_kmer_cds[gatc_kmer_cds>0]
+hist(gatc_kmer_cds_nocero, breaks = 2000,main="Frequencies of GATC content on each CDS",xlab="proportion of GATC",ylab="Frequency")
+length(gatc_kmer_cds_nocero)/nrow(kmers_cds)
+
+#Content of GATC in CDS along all the genome
+annot_cds$GATC_cont=gatc_kmer_cds
+annot_cds$midpoint <- (annot_cds$start + annot_cds$end) / 2
+ggplot(data = annot_cds) +
+  geom_point(aes(x = midpoint, y = GATC_cont), color = "blue",size=0.7) +
+  xlab("Genomic Position") +
+  ylab("GATC content") +
+  ggtitle("Plot of GATC content on CDS Along the Genome")+
+  geom_hline(yintercept = 0.01, linetype = "dashed", color = "red")+
+  scale_x_continuous(labels = function(x) format(x, scientific = FALSE))
+
+#Select genes with more GATC content in their CDS
+top_100_values <- gatc_kmer_cds_nocero[order(gatc_kmer_cds_nocero, decreasing = TRUE)[1:100]]
+top_100_values=gatc_kmer_cds_nocero[gatc_kmer_cds_nocero>=0.01]
+locustag_values <- c()
+locus=list()
+for (i in 1:length(names(top_100_values))) {
+  locus[[i]]=numbers
+  numbers <- as.numeric(strsplit(names(top_100_values)[i], "_")[[1]][2:3])
+  locus[[i]]=numbers
+  matching_rows <- annot_cds[(annot_cds$start == numbers[1] & annot_cds$end == numbers[2]), ]
+  locustag_value <- matching_rows$locus_tag
+  locustag_values <- c(locustag_values, locustag_value)
+}
+
+
+# Create a data frame with the coordinates of the top 100 genes
+df <- data.frame(start = sapply(locus, "[", 1),
+                 end = sapply(locus, "[", 2))
+# Calculate the distribution of start and end positions
+start_distribution <- density(df$start)
+end_distribution <- density(df$end)
+ggplot() +
+  geom_density(aes(x = start), data = df, fill = "lightblue", alpha = 0.5) +
+  geom_density(aes(x = end), data = df, fill = "lightgreen", alpha = 0.5) +
+  xlab("Position in the genome") +
+  ylab("Density") +
+  ggtitle("Density distribution CDS that have >=1% content of GATC along the genome") +
+  scale_x_continuous(labels = function(x) format(x, scientific = FALSE))
+
+
+#Functional enrichment analysis of the cds with most GATC content
+txdb <- makeTxDbFromGFF("GCF_000005845.2_ASM584v2_genomic.gff")
+genes_symbol=na.exclude(AnnotationDbi::select(txdb,keys=locustag_values,keytype="GENEID",columns="TXNAME",multiVals="first")[,2])
+library(clusterProfiler)
+library(org.EcK12.eg.db)
+eso <- enrichGO(as.vector(genes_symbol),keyType = "SYMBOL",OrgDb = org.EcK12.eg.db,ont = "BP",qvalueCutoff = 0.5,pvalueCutoff = 0.5,readable = TRUE)
+
+barplot(eso, showCategory=10,title="")
+
+```
+```{r}
+full_0_0=read.delim("methylation_0-0_full.bed",header=FALSE,stringsAsFactors = FALSE)
+full_4_4=read.delim("methylation_4-4_full.bed",header=FALSE,stringsAsFactors = FALSE)
+full_6_6=read.delim("methylation_6-6_full.bed",header=FALSE,stringsAsFactors = FALSE)
+full_7_7=read.delim("methylation_7-7_full.bed",header=FALSE,stringsAsFactors = FALSE)
+full_SRR1536433=read.delim("SRR1536433_full.bed",header=FALSE,stringsAsFactors = FALSE)
+
+
+results_0_0_full=methylated_region(full_0_0)
+results_4_4_full=methylated_region(full_4_4)
+results_6_6_full=methylated_region(full_6_6)
+results_7_7_full=methylated_region(full_7_7)
+results_SRR1536433_full=methylated_region(full_SRR1536433)
+
+binom.test(results_0_0_full["intergenic"],sum(results_0_0_full),p=0.073)
+binom.test(results_4_4_full["intergenic"],sum(results_4_4_full),p=0.073) 
+binom.test(results_6_6_full["cds"],sum(results_6_6_full),p=0.9231) 
+binom.test(results_7_7_full["cds"],sum(results_7_7_full),p=0.9231) 
+binom.test(results_SRR1536433_full["cds"],sum(results_SRR1536433_full),p=0.9231)
+```
+
+
